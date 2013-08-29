@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 typedef enum {
-	BODY_BALL,
-	BODY_BLOCK,
-	BODY_CUSTOM
+	BODY_TYPE_BALL,
+	BODY_TYPE_BLOCK,
+	BODY_TYPE_CUSTOM
 } body_type_enum;
 
 typedef struct {
@@ -15,6 +16,8 @@ typedef struct {
 	double green;
 	double blue;
 } color_t;
+
+static color_t COLOR_BLACK = {0.0, 0.0, 0.0};
 
 typedef struct {
 	body_type_enum type;
@@ -78,8 +81,62 @@ typedef struct {
 	bool show_id;
 } connector_t;
 
+int body_init(body_t *self, body_type_enum type) {
+	self->type = type;
+
+	self->x = 0.0;
+	self->y = 0.0;
+	self->theta = 0.0;
+
+	self->name = NULL;
+	self->id = -1;
+
+	self->show_cs = false;
+	self->show_name = false;
+	self->show_id = false;
+	self->filled = true;
+	self->color = COLOR_BLACK;
+	return 0;
+}
+
+int body_ball_init(body_ball_t *self) {
+	body_init((body_t *)self, BODY_TYPE_BALL);
+	self->radius = 1.0;
+}
+
+int body_block_init(body_block_t *self) {
+	body_init((body_t *)self, BODY_TYPE_BLOCK);
+	self->x1 = -1.0;
+	self->x2 = +1.0;
+	self->y1 = -1.0;
+	self->y2 = +1.0;
+}
+
+int body_set_name(body_t *self, char *name) {
+	if(self->name != NULL) {
+		free(self->name);
+		self->name = NULL;
+	}
+	if(name == NULL) {
+		return 0;
+	}
+	self->name = malloc(strlen(name)+1);
+	if(self->name == NULL) {
+		return -1;
+	}
+	strcpy(self->name, name);
+	return 0;
+}
+
 int main(int argc, char *argv[]) {
+
+	body_ball_t ball_1;
+	body_ball_init(&ball_1);
+	body_set_name((body_t *)&ball_1, "hello_world");
+
 	printf("Hello World\n");
+	printf("ball_1's name is: \"%s\"\n", ball_1.body.name);
+	printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
 	return 0;
 }
 
