@@ -1,0 +1,31 @@
+The general concept is an application that can be used to quickly visualize the motion of various type of objects moving in 2-D space.  Typical use case would be to visualize the results of a simulation of a mechanical system. For example, a mass-spring system, or a pendulum, etc.
+
+The following types of shapes should be supported:
+
+	* Ball (circle)
+		* user-specified radius
+		* user-specified body frame (locates/orients body origin within ball)
+		* user-specified position (of body frame w.r.t ground frame)
+		* user-specified orientation (orientation indicated with radial line(s))
+
+	* Block (rectangle)
+		* user-specified dims (width, height)
+		* user-specified body frame (locates/orients body frame within block)
+		* user-specified positon (of body frame w.r.t. ground frame)
+		* user-specified orientation (of body frame w.r.t. ground frame)
+
+	* Custom
+		* shape is defined by a series of 3 or more (x,y) pairs (given in body coordinates)
+		* user-specified position  (of body frame w.r.t ground frame)
+		* user-specified orientation (of body frame w.r.t. ground frame)
+	
+--------------------------------------------------
+
+	* Connector
+		* user-specified connector type: "line" or "spring"
+		* user-specified thickness
+		* Option 1:
+			* user specifies positions of end points
+		* Option 2:
+			* user specifies which 2 shapes to connect, and where on each body to attach
+
