@@ -30,10 +30,10 @@ The following types of shapes should be supported:
 			* user specifies which 2 shapes to connect, and where on each body to attach
 
 typedef enum {
-	SHAPE_BALL,
-	SHAPE_BLOCK,
-	SHAPE_CUSTOM
-} shape_t
+	BODY_BALL,
+	BODY_BLOCK,
+	BODY_CUSTOM
+} body_type_enum
 
 typedef struct {
 	double red;
@@ -42,12 +42,17 @@ typedef struct {
 } color_t;
 
 typedef struct {
-	shape_t shape;
+	body_type_enum type;
 	double x;
 	double y;
 	double theta;
 
+	char *name; // user-specified name string
+	int id; // user-specified id number
+
 	bool show_cs;
+	bool show_name;
+	bool show_id;
 	bool filled;
 	color_t color;
 } body_t;
@@ -70,9 +75,31 @@ typedef struct {
 	double y;
 } node_t;
 
-typdef struct {
+typedef struct {
 	body_t body;
 	int node_count;
 	node_t *nodes;
 } body_custom_t;
+
+typedef enum {
+	CONN_VISUAL_LINE,
+	CONN_VISUAL_SPRING
+} conn_visual_enum;
+
+typedef struct {
+	conn_visual_enum visual;
+
+	body_t *body_1; // first body to attach to
+	double x1;      // (x,y) position of body_1 to attach to 
+	double y1;
+
+	body_t *body_2; // second body to attach to
+	double x2;      // (x,y) position of body_2 to attach to 
+	double y2;
+
+	double thickness;
+	color_t color;
+	bool show_name;
+	bool show_id;
+} connector_t;
 
