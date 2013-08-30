@@ -219,6 +219,27 @@ int validate_args(int argc, char *argv[]) {
 	return 0;
 }
 
+int open_file_nonblocking(char *fname) {
+	int fd;
+	if(strcmp(fname, "-") != 0) { // dash denotes STDIN
+		// STDIN is already open - just make it nonblocking
+		fd = 0; // STDIN = 0
+		int flags;
+		flags = fcntl(fd, F_GETFL, 0);
+   	flags |= O_NONBLOCK;
+   	fcntl(fd, F_SETFL, flags);
+	}
+	else { // regular filename (just open it in nonblock mode)
+		fd = open(fname, O_RDONLY | O_NONBLOCK);
+		if(fd == -1) {
+			fprintf(stderr, "Error opening file: %s\n", fname);
+			exit(-1);
+		}
+	}
+	return fd;
+}
+
+
 int main(int argc, char *argv[]) {
 
 	ball_t ball_1;
@@ -237,6 +258,13 @@ int main(int argc, char *argv[]) {
 
 	if(validate_args(argc, argv)) {
 		return -1;
+	}
+
+	int i;
+	for(i=1; i<argc; i++) {
+		int fd = open_file_nonblocking(argv[i]);
+		while((ret = read(fd, &c, 1)) 
+		
 	}
 
 	return 0;
