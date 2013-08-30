@@ -5,6 +5,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 typedef enum {
 	BODY_TYPE_BALL,
 	BODY_TYPE_BLOCK,
@@ -252,7 +256,6 @@ int main(int argc, char *argv[]) {
 	body_set_name((body_t *)pcust_1, "custom_1");
 
 	printf("Hello World\n");
-	printf("ball_1's name is: \"%s\"\n", ball_1.body.name);
 	printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
 	printf("cust_1's name is: \"%s\"\n", ((body_t *)pcust_1)->name);
 
@@ -261,9 +264,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	int i;
+	int ret;
+	int c;
 	for(i=1; i<argc; i++) {
+		printf("Reading from file: %s\n", argv[i]);
 		int fd = open_file_nonblocking(argv[i]);
-		while((ret = read(fd, &c, 1)) 
+		while((ret = read(fd, &c, 1)) > 0) {
+		} 
 		
 	}
 
