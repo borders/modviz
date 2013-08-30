@@ -9,6 +9,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
+
 typedef enum {
 	BODY_TYPE_BALL,
 	BODY_TYPE_BLOCK,
@@ -223,6 +228,24 @@ int validate_args(int argc, char *argv[]) {
 	return 0;
 }
 
+static int load_config(const char *filename, xmlDocPtr *doc_out) {
+	xmlDocPtr doc; /* the resulting document tree */
+
+	*doc_out = NULL;
+
+	/* parse the file, activating the DTD validation option */
+	doc = xmlReadFile(filename, NULL, 0);
+	/* check if parsing suceeded */
+	if(doc == NULL) {
+		fprintf(stderr, "Failed to parse XML config file: %s\n", filename);
+		return -1;
+	}
+	/* free up the resulting document */
+	//xmlFreeDoc(doc);
+	*doc_out = doc;
+	return 0;
+}
+
 int open_file_nonblocking(char *fname) {
 	int fd;
 	if(strcmp(fname, "-") != 0) { // dash denotes STDIN
@@ -243,8 +266,70 @@ int open_file_nonblocking(char *fname) {
 	return fd;
 }
 
+static void print_element_names(xmlNode * a_node, int level) {
+    xmlNode *cur_node = NULL;
+
+    for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
+        if (cur_node->type == XML_ELEMENT_NODE) {
+				int i;
+				for(i=0; i<level; i++) {
+					printf("   ");
+				}
+            printf("node type: Element, name: %s\n", cur_node->name);
+        }
+
+        print_element_names(cur_node->children, level+1);
+    }
+}
+
+void print_xpath_nodes(xmlNodeSetPtr nodes) {
+	xmlNodePtr cur;
+	int size;
+	int i;
+    
+	size = (nodes) ? nodes->nodeNr : 0;
+    
+	printf("Result (%d nodes):\n", size);
+	for(i = 0; i < size; ++i) {
+		if(nodes->nodeTab[i]->type == XML_NAMESPACE_DECL) {
+			xmlNsPtr ns;
+			ns = (xmlNsPtr)nodes->nodeTab[i];
+			cur = (xmlNodePtr)ns->next;
+			if(cur->ns) { 
+				printf("= namespace \"%s\"=\"%s\" for node %s:%s\n", 
+					ns->prefix, ns->href, cur->ns->href, cur->name);
+			} else {
+				printf("= namespace \"%s\"=\"%s\" for node %s\n", 
+					ns->prefix, ns->href, cur->name);
+			}
+		} else if(nodes->nodeTab[i]->type == XML_ELEMENT_NODE) {
+			cur = nodes->nodeTab[i];   	    
+			if(cur->ns) { 
+				printf("= element node \"%s:%s\"\n", 
+					cur->ns->href, cur->name);
+			} else {
+				printf("= element node \"%s\"\n", cur->name);
+			}
+		} else {
+			cur = nodes->nodeTab[i];    
+			printf("= node \"%s\": type %d\n", cur->name, cur->type);
+		}
+	}
+}
 
 int main(int argc, char *argv[]) {
+
+	if(argc < 2) {
+		printf("Usage: %s XML_CONFIG_FILE [DATAFILE]\n", argv[0]);
+		return 0;
+	}
+
+	/*
+	 * this initialize the library and check potential ABI mismatches
+	 * between the version it was compiled for and the actual shared
+	 * library used.
+	 */
+	LIBXML_TEST_VERSION
 
 	ball_t ball_1;
 	ball_init(&ball_1);
@@ -255,14 +340,14 @@ int main(int argc, char *argv[]) {
 	custom_init(pcust_1);
 	body_set_name((body_t *)pcust_1, "custom_1");
 
-	printf("Hello World\n");
-	printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
-	printf("cust_1's name is: \"%s\"\n", ((body_t *)pcust_1)->name);
+	//printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
+	//printf("cust_1's name is: \"%s\"\n", ((body_t *)pcust_1)->name);
 
+
+#if 0
 	if(validate_args(argc, argv)) {
 		return -1;
 	}
-
 	int i;
 	int ret;
 	int c;
@@ -273,6 +358,40 @@ int main(int argc, char *argv[]) {
 		} 
 		
 	}
+#endif
+
+	xmlDocPtr doc;
+	xmlNodePtr root;
+	if(load_config(argv[1], &doc)) {
+		printf("Error loading or valdiating XML config file!\n");
+	}
+
+	root = xmlDocGetRootElement(doc);
+	print_element_names(root, 0 );
+
+	/* Create xpath evaluation context */
+	xmlXPathContextPtr xpathCtx;
+	xpathCtx = xmlXPathNewContext(doc);
+	if(xpathCtx == NULL) {
+		printf("Error: unable to create new XPath context\n");
+		xmlFreeDoc(doc); 
+		return(-1);
+	}
+
+	/* Evaluate xpath expression */
+	xmlXPathObjectPtr xpathObj;
+	xpathObj = xmlXPathEvalExpression(BAD_CAST "ball", xpathCtx);
+	if(xpathObj == NULL) {
+		printf("Error: unable to evaluate xpath expression\n");
+		xmlXPathFreeContext(xpathCtx); 
+		xmlFreeDoc(doc); 
+		return(-1);
+	}
+
+	/* Print results */
+	print_xpath_nodes(xpathObj->nodesetval);
+
+
 
 	return 0;
 }

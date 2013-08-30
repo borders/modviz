@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<modviz_config xmlns="http://mydoc.example.org/schemas/">
+	<ball
+		name="main pulley"
+		radius="2.3"
+		x="0.0"
+		y="0.0"
+	/>
+	<test>
+		<fruit>
+			<apple />
+			<orange>fds</orange>
+			<pear>
+fdsa
+fdas
+f
+dsafas
+			</pear>
+		</fruit>
+	</test>
+</modviz_config>
