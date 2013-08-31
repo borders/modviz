@@ -11,8 +11,6 @@
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
-#include <libxml/xpath.h>
-#include <libxml/xpathInternals.h>
 
 typedef enum {
 	BODY_TYPE_BALL,
@@ -207,27 +205,6 @@ int body_set_name(body_t *self, char *name) {
 	return 0;
 }
 
-int validate_args(int argc, char *argv[]) {
-	int i;
-	if(argc == 1) {
-		return 0;
-	}
-	for(i=1; i < argc; i++) {
-		FILE *fp;
-		// dash (-) represents stdin -> skip it
-		if(!strcmp(argv[i], "-")) {
-			continue;
-		}
-		fp = fopen(argv[i], "r");
-		if(fp == NULL) {
-			fprintf(stderr, "Unable to read from input file: %s\n", argv[i]);
-			return -1;
-		}
-		fclose(fp);
-	}
-	return 0;
-}
-
 static int load_config(const char *filename, xmlDocPtr *doc_out) {
 	xmlDocPtr doc; /* the resulting document tree */
 
@@ -267,55 +244,49 @@ int open_file_nonblocking(char *fname) {
 }
 
 static void print_element_names(xmlNode * a_node, int level) {
-    xmlNode *cur_node = NULL;
-
-    for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
-        if (cur_node->type == XML_ELEMENT_NODE) {
-				int i;
-				for(i=0; i<level; i++) {
-					printf("   ");
-				}
-            printf("node type: Element, name: %s\n", cur_node->name);
-        }
-
-        print_element_names(cur_node->children, level+1);
-    }
-}
-
-void print_xpath_nodes(xmlNodeSetPtr nodes) {
-	xmlNodePtr cur;
-	int size;
-	int i;
-    
-	size = (nodes) ? nodes->nodeNr : 0;
-    
-	printf("Result (%d nodes):\n", size);
-	for(i = 0; i < size; ++i) {
-		if(nodes->nodeTab[i]->type == XML_NAMESPACE_DECL) {
-			xmlNsPtr ns;
-			ns = (xmlNsPtr)nodes->nodeTab[i];
-			cur = (xmlNodePtr)ns->next;
-			if(cur->ns) { 
-				printf("= namespace \"%s\"=\"%s\" for node %s:%s\n", 
-					ns->prefix, ns->href, cur->ns->href, cur->name);
-			} else {
-				printf("= namespace \"%s\"=\"%s\" for node %s\n", 
-					ns->prefix, ns->href, cur->name);
+	xmlNode *cur_node = NULL;
+	for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
+		if (cur_node->type == XML_ELEMENT_NODE) {
+			int i;
+			for(i=0; i<level; i++) {
+				printf("   ");
 			}
-		} else if(nodes->nodeTab[i]->type == XML_ELEMENT_NODE) {
-			cur = nodes->nodeTab[i];   	    
-			if(cur->ns) { 
-				printf("= element node \"%s:%s\"\n", 
-					cur->ns->href, cur->name);
-			} else {
-				printf("= element node \"%s\"\n", cur->name);
-			}
-		} else {
-			cur = nodes->nodeTab[i];    
-			printf("= node \"%s\": type %d\n", cur->name, cur->type);
+			printf("node type: Element, name: %s\n", cur_node->name);
 		}
+		print_element_names(cur_node->children, level+1);
 	}
 }
+
+static void print_all_attribs(xmlNode * node, int level) {
+	struct _xmlAttr *cur_attr;
+	for (cur_attr = node->properties; cur_attr != NULL; cur_attr = cur_attr->next) {
+		int i;
+		for(i=0; i<level; i++) {
+			printf("   ");
+		}
+		printf("  Attribute:: %s = %s\n", cur_attr->name, xmlGetProp(node, cur_attr->name));
+	}
+}
+
+static void print_all_nodes(xmlNode * a_node, int level) {
+	xmlNode *cur_node = NULL;
+	for (cur_node = a_node; cur_node; cur_node = cur_node->next) {
+		int i;
+		if(cur_node->type == XML_TEXT_NODE) {
+			continue;
+		}
+		for(i=0; i<level; i++) {
+			printf("   ");
+		}
+		printf("Node type: %d; ", cur_node->type);
+		printf("name: %s; ", cur_node->name);
+		printf("content: %s; ", cur_node->content);
+		printf("\n");
+		print_all_attribs(cur_node, level);
+		print_all_nodes(cur_node->children, level+1);
+	}
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -343,23 +314,6 @@ int main(int argc, char *argv[]) {
 	//printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
 	//printf("cust_1's name is: \"%s\"\n", ((body_t *)pcust_1)->name);
 
-
-#if 0
-	if(validate_args(argc, argv)) {
-		return -1;
-	}
-	int i;
-	int ret;
-	int c;
-	for(i=1; i<argc; i++) {
-		printf("Reading from file: %s\n", argv[i]);
-		int fd = open_file_nonblocking(argv[i]);
-		while((ret = read(fd, &c, 1)) > 0) {
-		} 
-		
-	}
-#endif
-
 	xmlDocPtr doc;
 	xmlNodePtr root;
 	if(load_config(argv[1], &doc)) {
@@ -368,30 +322,8 @@ int main(int argc, char *argv[]) {
 
 	root = xmlDocGetRootElement(doc);
 	print_element_names(root, 0 );
-
-	/* Create xpath evaluation context */
-	xmlXPathContextPtr xpathCtx;
-	xpathCtx = xmlXPathNewContext(doc);
-	if(xpathCtx == NULL) {
-		printf("Error: unable to create new XPath context\n");
-		xmlFreeDoc(doc); 
-		return(-1);
-	}
-
-	/* Evaluate xpath expression */
-	xmlXPathObjectPtr xpathObj;
-	xpathObj = xmlXPathEvalExpression(BAD_CAST "ball", xpathCtx);
-	if(xpathObj == NULL) {
-		printf("Error: unable to evaluate xpath expression\n");
-		xmlXPathFreeContext(xpathCtx); 
-		xmlFreeDoc(doc); 
-		return(-1);
-	}
-
-	/* Print results */
-	print_xpath_nodes(xpathObj->nodesetval);
-
-
+	printf("-------\n\n");
+	print_all_nodes(root, 0);
 
 	return 0;
 }
