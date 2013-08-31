@@ -554,6 +554,11 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 		}
 	}
 
+	if(node_count < 2) {
+		ERROR("Error: only found %d (x,y) nodes in custom element. Must specify at least 2\n", node_count);
+		return -1;
+	}
+
 	// allocated memory for the (x,y) node data
 	custom->node_x = malloc(node_count * sizeof(double));
 	custom->node_y = malloc(node_count * sizeof(double));
@@ -565,6 +570,7 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 	int err = 0;
 	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
 		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "node") ) {
+			err = 0;
 			err = err || parse_attrib_to_double(xnode, &(custom->node_x[node_count]), "x", true, 0.);
 			err = err || parse_attrib_to_double(xnode, &(custom->node_y[node_count]), "y", true, 0.);
 			if(err) {
@@ -582,7 +588,7 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 	}
 
 	if(error) {
-		ERROR("Error parsing block XML\n");
+		ERROR("Error parsing custom XML\n");
 		return -1;
 	}
 	return 0;
