@@ -148,6 +148,18 @@ ball_t *ball_alloc(void) {
 	return ball;
 }
 
+void custom_dealloc(custom_t *self) {
+	if(self) {
+		free(self);
+	}
+}
+
+void block_dealloc(block_t *self) {
+	if(self) {
+		free(self);
+	}
+}
+
 void ball_dealloc(ball_t *self) {
 	if(self) {
 		free(self);
@@ -492,6 +504,9 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->filled, "filled", false, true);
+	error = error || parse_attrib_to_double(xml, &(body->x), "x", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->y), "y", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->theta), "theta", false , 0.);
 	if(error) {
 		ERROR("Error parsing body XML\n");
 		return -1;
@@ -506,6 +521,68 @@ int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
 	if(error) {
 		ERROR("Error parsing ball XML\n");
+		return -1;
+	}
+	return 0;
+}
+
+int parse_block_xml(xmlNode *xml, block_t *block) {
+	int error = 0;
+
+	error = error || parse_body_xml(xml, (body_t *)block);
+	error = error || parse_attrib_to_double(xml, &(block->x1), "x1", true, 0.);
+	error = error || parse_attrib_to_double(xml, &(block->x2), "x2", true, 0.);
+	error = error || parse_attrib_to_double(xml, &(block->y1), "y1", true, 0.);
+	error = error || parse_attrib_to_double(xml, &(block->y2), "y2", true, 0.);
+	if(error) {
+		ERROR("Error parsing block XML\n");
+		return -1;
+	}
+	return 0;
+}
+
+int parse_custom_xml(xmlNode *xml, custom_t *custom) {
+	int error = 0;
+
+	error = error || parse_body_xml(xml, (body_t *)custom);
+	int node_count = 0;
+	xmlNode *xnode;
+	// first, loop through children, and count up number of <node> elements
+	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
+		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "node") ) {
+			node_count++;
+		}
+	}
+
+	// allocated memory for the (x,y) node data
+	custom->node_x = malloc(node_count * sizeof(double));
+	custom->node_y = malloc(node_count * sizeof(double));
+	custom->node_owner = true;
+	custom->node_count = node_count;
+
+	// now loop through children again, this time parsing the (x,y) elmnts into arrays
+	node_count = 0;
+	int err = 0;
+	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
+		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "node") ) {
+			err = err || parse_attrib_to_double(xnode, &(custom->node_x[node_count]), "x", true, 0.);
+			err = err || parse_attrib_to_double(xnode, &(custom->node_y[node_count]), "y", true, 0.);
+			if(err) {
+				ERROR("Error parsing custom body's x,y node\n");
+				break;
+			}
+			node_count++;
+		}
+	}
+	if(err) {
+		free(custom->node_x);
+		free(custom->node_y);
+		custom->node_owner = false;
+		error = 1;
+	}
+
+	if(error) {
+		ERROR("Error parsing block XML\n");
 		return -1;
 	}
 	return 0;
@@ -529,13 +606,43 @@ int parse_config_xml(xmlNode *xml) {
 			DIE_IF_TOO_MANY_BODIES();
 			printf("Got \"ball\" element!\n");
 			ball_t *ball = ball_alloc();
+			ball_init(ball);
 			if(parse_ball_xml(curNode, ball)) {
-				ERROR("Error parsing \"ball\" XML into ball_t struct!\n");
+				ERROR("*** Error parsing \"ball\" XML into ball_t struct!\n");
 				ball_dealloc(ball);
 			}
 			app_data.bodies[app_data.num_bodies++] = (body_t *)ball;
 		}
+		else if(!strcmp(curNode->name, "block")) {
+			DIE_IF_TOO_MANY_BODIES();
+			printf("Got \"block\" element!\n");
+			block_t *block = block_alloc();
+			block_init(block);
+			if(parse_block_xml(curNode, block)) {
+				ERROR("*** Error parsing \"block\" XML into block_t struct!\n");
+				block_dealloc(block);
+			}
+			app_data.bodies[app_data.num_bodies++] = (body_t *)block;
+		}
+		else if(!strcmp(curNode->name, "custom")) {
+			DIE_IF_TOO_MANY_BODIES();
+			printf("Got \"custom\" element!\n");
+			custom_t *cust = custom_alloc();
+			custom_init(cust);
+			if(parse_custom_xml(curNode, cust)) {
+				ERROR("*** Error parsing \"custom\" XML into custom_t struct!\n");
+				custom_dealloc(cust);
+			}
+			app_data.bodies[app_data.num_bodies++] = (body_t *)cust;
+		}
+		else {
+			DEBUG("Unsupported element! (%s)\n", curNode->name);
+		}
 	}
+
+	printf("**************************\n");
+	printf("Got %d bodies\n", app_data.num_bodies);
+	printf("Got %d connectors\n", app_data.num_connectors);
 	return 0;
 }
 
