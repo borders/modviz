@@ -12,6 +12,9 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+#define MAX_BODIES     500
+#define MAX_CONNECTORS 500
+
 #define PRINT_DEBUGS 1
 #define PRINT_ERRORS 1
 
@@ -101,8 +104,6 @@ typedef struct {
 	bool show_id;
 } connector_t;
 
-#define MAX_BODIES     500
-#define MAX_CONNECTORS 500
 
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
@@ -112,7 +113,12 @@ typedef struct _app_data_t {
 	int num_connectors;
 } app_data_t;
 
-static app_data_t app_data;
+static app_data_t app_data = {
+	.bodies = NULL,
+	.num_bodies = 0,
+	.connectors = NULL,
+	.num_connectors = 0
+};
 
 int body_init(body_t *self, body_type_enum type) {
 	self->type = type;
@@ -140,6 +146,12 @@ ball_t *ball_alloc(void) {
 		exit(-1);
 	}
 	return ball;
+}
+
+void ball_dealloc(ball_t *self) {
+	if(self) {
+		free(self);
+	}
 }
 
 int ball_init(ball_t *self) {
@@ -370,6 +382,30 @@ int parse_attrib_to_int(xmlNode *xml, int *dest, char *attrib_name, bool require
 	return 0;
 }
 
+int parse_attrib_to_string(xmlNode *xml, char **dest, char *attrib_name, bool required, char *dflt) {
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			char *s = malloc(strlen(dflt));
+			if(s == NULL) {
+				fprintf(stderr, "Error allocating string memory!\n");
+				exit(-1);
+			}
+			strcpy(*dest, dflt);
+			DEBUG("Didn't find \"%s\" attribute. Using default value (%s) instead...\n", attrib_name, dflt);
+			return 0;
+		}
+	}
+	*dest = val_str;
+	/* note: I'm intentionally NOT freeing "val_str" */
+	DEBUG("successfully parsed the \"%s\" attribute into a string (\"%s\")\n", attrib_name, *dest);
+	return 0;
+}
+
 int parse_attrib_to_double(xmlNode *xml, double *dest, char *attrib_name, bool required, double dflt) {
 	char *val_str = xmlGetProp(xml, attrib_name);
 	if(val_str == NULL) {
@@ -450,6 +486,7 @@ int parse_attrib_to_bool(xmlNode *xml, bool *dest, char *attrib_name, bool requi
 int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
+	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
 	error = error || parse_attrib_to_int(xml, &body->id, "id", false, -1);
 	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
@@ -474,6 +511,12 @@ int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 	return 0;
 }
 
+#define DIE_IF_TOO_MANY_BODIES() \
+	if(app_data.num_bodies >= MAX_BODIES) { \
+		ERROR("Maximum number of bodies (%d) exceeded!\n", MAX_BODIES); \
+		exit(-1); \
+	}
+
 int parse_config_xml(xmlNode *xml) {
 	xmlNode *curNode;
 	printf("parsing config XML...\n");
@@ -483,9 +526,14 @@ int parse_config_xml(xmlNode *xml) {
 			continue;
 		}
 		if(!strcmp(curNode->name, "ball")) {
-			ball_t ball;
+			DIE_IF_TOO_MANY_BODIES();
 			printf("Got \"ball\" element!\n");
-			parse_ball_xml(curNode, &ball);
+			ball_t *ball = ball_alloc();
+			if(parse_ball_xml(curNode, ball)) {
+				ERROR("Error parsing \"ball\" XML into ball_t struct!\n");
+				ball_dealloc(ball);
+			}
+			app_data.bodies[app_data.num_bodies++] = (body_t *)ball;
 		}
 	}
 	return 0;
