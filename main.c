@@ -12,6 +12,21 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+#define PRINT_DEBUGS 1
+#define PRINT_ERRORS 1
+
+#if PRINT_DEBUGS
+	#define DEBUG(...) printf(__VA_ARGS__)
+#else
+	#define DEBUG(...) 
+#endif
+
+#if PRINT_ERRORS
+	#define ERROR(...) fprintf(stderr, __VA_ARGS__)
+#else
+	#define ERROR(...) 
+#endif
+
 typedef enum {
 	BODY_TYPE_BALL,
 	BODY_TYPE_BLOCK,
@@ -287,6 +302,181 @@ static void print_all_nodes(xmlNode * a_node, int level) {
 	}
 }
 
+int parse_int(char *str, int *val) {
+	int i;
+	char *end;
+	*val = 0.0;
+	if(isspace(*str)) {
+		return -1;
+	}
+	i = strtol(str, &end, 0);
+	if( (end - str) != strlen(str) ) {
+		return -1;
+	}
+	*val = i;
+	return 0;
+}
+
+int parse_double(char *str, double *val) {
+	double d;
+	char *end;
+	*val = 0.0;
+	if(isspace(*str)) {
+		return -1;
+	}
+	d = strtod(str, &end);
+	if( (end - str) != strlen(str) ) {
+		return -1;
+	}
+	*val = d;
+	return 0;
+}
+
+int parse_attrib_to_int(xmlNode *xml, int *dest, char *attrib_name, bool required, int dflt) {
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			*dest = dflt;
+			DEBUG("Didn't find \"%s\" attribute. Using default value (%d) instead...\n", attrib_name, dflt);
+			return 0;
+		}
+	}
+	int i;
+	if(parse_int(val_str, &i)) {
+		ERROR("Error: The \"%s\" attribute must be an integer\n", attrib_name);
+		xmlFree(val_str);
+		return -1;
+	}
+	*dest = i;
+	xmlFree(val_str);
+	printf("successfully parsed the \"%s\" attribute into an integer (%d)\n", attrib_name, i);
+	return 0;
+}
+
+int parse_attrib_to_double(xmlNode *xml, double *dest, char *attrib_name, bool required, double dflt) {
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			*dest = dflt;
+			DEBUG("Didn't find \"%s\" attribute. Using default value (%g) instead...\n", attrib_name, dflt);
+			return 0;
+		}
+	}
+	double d;
+	if(parse_double(val_str, &d)) {
+		ERROR("Error: The \"%s\" attribute must be a decimal number\n", attrib_name);
+		xmlFree(val_str);
+		return -1;
+	}
+	*dest = d;
+	xmlFree(val_str);
+	DEBUG("successfully parsed the \"%s\" attribute into a double (%g)\n", attrib_name, d);
+	return 0;
+}
+
+int parse_attrib_to_bool(xmlNode *xml, bool *dest, char *attrib_name, bool required, bool dflt) {
+	static char *true_values[] =  {"true", "TRUE", "True", "1", "yes", "YES", "Yes"};
+	static char *false_values[] = {"false", "FALSE", "False", "0", "no", "NO", "No"};
+
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			*dest = dflt;
+			DEBUG (
+				"Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
+				attrib_name, dflt ? "TRUE" : "FALSE"
+			);
+			return 0;
+		}
+	}
+	bool b;
+	int i;
+	bool matched = false;
+	for(i=0; i<sizeof(true_values)/sizeof(true_values[0]); i++) {
+		if(!strcmp(val_str, true_values[i])) {
+			b = true;
+			matched = true;
+			break;
+		}
+	}
+	if(!matched) {
+		for(i=0; i<sizeof(false_values)/sizeof(false_values[0]); i++) {
+			if(!strcmp(val_str, false_values[i])) {
+				b = false;
+				matched = true;
+				break;
+			}
+		}
+	}
+	if(!matched) {
+		ERROR("Error: The \"%s\" attribute must be a boolean\n", attrib_name);
+		xmlFree(val_str);
+		return -1;
+	}
+	*dest = b;
+	xmlFree(val_str);
+	DEBUG(
+		"successfully parsed the \"%s\" attribute into a boolean (%s)\n", 
+		attrib_name, (b ? "TRUE" : "FALSE")
+	);
+	return 0;
+}
+
+int parse_body_xml(xmlNode *xml, body_t *body) {
+	int error = 0;
+
+	error = error || parse_attrib_to_int(xml, &body->id, "id", false, -1);
+	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
+	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
+	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
+	error = error || parse_attrib_to_bool(xml, &body->filled, "filled", false, true);
+	if(error) {
+		ERROR("Error parsing body XML\n");
+		return -1;
+	}
+	return 0;
+}
+
+int parse_ball_xml(xmlNode *xml, ball_t *ball) {
+	int error = 0;
+
+	parse_body_xml(xml, (body_t *)ball);
+	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
+	if(error) {
+		ERROR("Error parsing ball XML\n");
+		return -1;
+	}
+	return 0;
+}
+
+int parse_config_xml(xmlNode *xml) {
+	xmlNode *curNode;
+	printf("parsing config XML...\n");
+	for(curNode = xml->children; curNode != NULL; curNode = curNode->next) {
+		if(curNode->type != XML_ELEMENT_NODE) {
+			printf("skipping non-Element node...\n");
+			continue;
+		}
+		if(!strcmp(curNode->name, "ball")) {
+			ball_t ball;
+			printf("Got \"ball\" element!\n");
+			parse_ball_xml(curNode, &ball);
+		}
+	}
+	return 0;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -325,6 +515,8 @@ int main(int argc, char *argv[]) {
 	printf("-------\n\n");
 	print_all_nodes(root, 0);
 
+	printf("-------\n\n");
+	parse_config_xml(root);
 	return 0;
 }
 
