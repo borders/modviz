@@ -101,6 +101,19 @@ typedef struct {
 	bool show_id;
 } connector_t;
 
+#define MAX_BODIES     500
+#define MAX_CONNECTORS 500
+
+typedef struct _app_data_t {
+	body_t *bodies[MAX_BODIES];
+	int num_bodies;
+
+	connector_t *connectors[MAX_CONNECTORS];
+	int num_connectors;
+} app_data_t;
+
+static app_data_t app_data;
+
 int body_init(body_t *self, body_type_enum type) {
 	self->type = type;
 
@@ -452,7 +465,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 	int error = 0;
 
-	parse_body_xml(xml, (body_t *)ball);
+	error = error || parse_body_xml(xml, (body_t *)ball);
 	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
 	if(error) {
 		ERROR("Error parsing ball XML\n");
@@ -466,7 +479,7 @@ int parse_config_xml(xmlNode *xml) {
 	printf("parsing config XML...\n");
 	for(curNode = xml->children; curNode != NULL; curNode = curNode->next) {
 		if(curNode->type != XML_ELEMENT_NODE) {
-			printf("skipping non-Element node...\n");
+			//printf("skipping non-Element node...\n");
 			continue;
 		}
 		if(!strcmp(curNode->name, "ball")) {
