@@ -779,7 +779,7 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		if(!strcmp(curNode->name, "ball")) {
 			DIE_IF_TOO_MANY_BODIES();
-			printf("Got \"ball\" element!\n");
+			DEBUG("Got <ball> element!\n");
 			ball_t *ball = ball_alloc();
 			ball_init(ball);
 			if(parse_ball_xml(curNode, ball)) {
@@ -791,7 +791,7 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		else if(!strcmp(curNode->name, "block")) {
 			DIE_IF_TOO_MANY_BODIES();
-			printf("Got \"block\" element!\n");
+			DEBUG("Got <block> element!\n");
 			block_t *block = block_alloc();
 			block_init(block);
 			if(parse_block_xml(curNode, block)) {
@@ -803,7 +803,7 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		else if(!strcmp(curNode->name, "custom")) {
 			DIE_IF_TOO_MANY_BODIES();
-			printf("Got \"custom\" element!\n");
+			DEBUG("Got <custom> element!\n");
 			custom_t *cust = custom_alloc();
 			custom_init(cust);
 			if(parse_custom_xml(curNode, cust)) {
@@ -815,7 +815,7 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		else if(!strcmp(curNode->name, "connector")) {
 			DIE_IF_TOO_MANY_CONNECTORS();
-			printf("Got \"connectors\" element!\n");
+			DEBUG("Got <connector> element!\n");
 			connector_t *connect = connector_alloc();
 			connector_init(connect);
 			if(parse_connector_xml(curNode, connect)) {
@@ -826,13 +826,13 @@ int parse_config_xml(xmlNode *xml) {
 			app_data.connectors[app_data.num_connectors++] = connect;
 		}
 		else {
-			DEBUG("Unsupported element! (%s)\n", curNode->name);
+			ERROR("Unsupported element! (%s)\n", curNode->name);
 		}
 	}
 
-	printf("**************************\n");
-	printf("Got %d bodies\n", app_data.num_bodies);
-	printf("Got %d connectors\n", app_data.num_connectors);
+	DEBUG("**************************\n");
+	DEBUG("Got %d bodies\n", app_data.num_bodies);
+	DEBUG("Got %d connectors\n", app_data.num_connectors);
 	return 0;
 }
 

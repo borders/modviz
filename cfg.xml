@@ -37,4 +37,10 @@
 		<attach id="3" x="0.0" y="0.0" />
 	</connector>
 
+	<connector name="spring_2" id="777" type="spring">
+		<attach id="1" x="0.0" y="0.0" />
+		<attach id="3" x="0.0" y="0.0" />
+		<attach id="2" x="0.0" y="0.0" />
+	</connector>
+
 </modviz_config>
