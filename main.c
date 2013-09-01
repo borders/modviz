@@ -83,12 +83,12 @@ typedef struct {
 } custom_t;
 
 typedef enum {
-	CONN_VISUAL_LINE,
-	CONN_VISUAL_SPRING
-} conn_visual_enum;
+	CONN_TYPE_LINE,
+	CONN_TYPE_SPRING
+} conn_type_enum;
 
 typedef struct {
-	conn_visual_enum visual;
+	conn_type_enum type;
 
 	body_t *body_1; // first body to attach to
 	double x1;      // (x,y) position of body_1 to attach to 
@@ -98,6 +98,8 @@ typedef struct {
 	double x2;      // (x,y) position of body_2 to attach to 
 	double y2;
 
+	char *name;
+	int id;
 	double thickness;
 	color_t color;
 	bool show_name;
@@ -169,6 +171,7 @@ void ball_dealloc(ball_t *self) {
 int ball_init(ball_t *self) {
 	body_init((body_t *)self, BODY_TYPE_BALL);
 	self->radius = 1.0;
+	return 0;
 }
 
 
@@ -188,6 +191,7 @@ int block_init(block_t *self) {
 	self->x2 = +1.0;
 	self->y1 = -1.0;
 	self->y2 = +1.0;
+	return 0;
 }
 
 custom_t *custom_alloc(void) {
@@ -200,12 +204,42 @@ custom_t *custom_alloc(void) {
 	return cust;
 }
 
+void connector_dealloc(connector_t *self) {
+	if(self) {
+		free(self);
+	}
+}
+
+connector_t *connector_alloc(void) {
+	connector_t *self;
+	self = malloc(sizeof(connector_t));
+	if(self == NULL) {
+		fprintf(stderr, "Error allocating connector_t!\n");
+		exit(-1);
+	}
+	return self;
+}
+
+int connector_init(connector_t *self) {
+	self->type = CONN_TYPE_LINE;
+	self->body_1 = NULL;
+	self->body_2 = NULL;
+	self->x1 = 0.0;
+	self->y1 = 0.0;
+	self->x2 = 0.0;
+	self->y2 = 0.0;
+	self->name = "";
+	self->id = -1;
+	return 0;
+}
+
 int custom_init(custom_t *self) {
 	body_init((body_t *)self, BODY_TYPE_CUSTOM);
 	self->node_count = 0;
 	self->node_x = NULL;
 	self->node_y = NULL;
 	self->node_owner = false;
+	return 0;
 }
 
 int custom_set_nodes(custom_t *self, int node_count, double *x, double *y, bool copy) {
@@ -369,6 +403,77 @@ int parse_double(char *str, double *val) {
 	return 0;
 }
 
+typedef struct _enum_map_t {
+	const char *string;
+	int enum_val;
+} enum_map_t;
+
+static enum_map_t conn_type_enum_map[] = {
+	{"line", CONN_TYPE_LINE},
+	{"spring", CONN_TYPE_SPRING},
+
+	{0} // denotes end of array
+};
+
+const char *enum_map_get_string_from_enum(enum_map_t *map, int e) {
+	while(map->string) {
+		if(map->enum_val == e) {
+			return map->string;
+		}
+		map++;
+	}
+	return NULL;
+}
+
+int enum_map_get_enum_from_string(enum_map_t *map, char *string, int *enum_out) {
+	while(map->string) {
+		if(!strcmp(map->string, string)) {
+			*enum_out =  map->enum_val;
+			return 0;
+		}
+		map++;
+	}
+	return -1;
+}
+
+int parse_attrib_to_enum(
+	xmlNode *xml, 
+	int *dest, 
+	char *attrib_name, 
+	bool required, 
+	int dflt, 
+	enum_map_t *map) 
+{
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			*dest = dflt;
+			DEBUG("Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
+				attrib_name, enum_map_get_string_from_enum(map, dflt));
+			return 0;
+		}
+	}
+	int e;
+	if(enum_map_get_enum_from_string(map, val_str, &e)) {
+		ERROR("Error: The \"%s\" attribute must be one of the following values:\n", attrib_name);
+		enum_map_t *m = map;
+		while(m->string) {
+			ERROR("  %s\n", m->string);
+			m++;
+		}
+		xmlFree(val_str);
+		return -1;
+	}
+	*dest = e;
+	xmlFree(val_str);
+	printf("successfully parsed the \"%s\" attribute into an enum (%d)\n", attrib_name, e);
+	return 0;
+}
+
 int parse_attrib_to_int(xmlNode *xml, int *dest, char *attrib_name, bool required, int dflt) {
 	char *val_str = xmlGetProp(xml, attrib_name);
 	if(val_str == NULL) {
@@ -495,11 +600,69 @@ int parse_attrib_to_bool(xmlNode *xml, bool *dest, char *attrib_name, bool requi
 	return 0;
 }
 
+body_t *lookup_body_by_id(int id) {
+	int i;
+	for(i=0; i < app_data.num_bodies; i++) {
+		if(app_data.bodies[i]->id == id) {
+			return app_data.bodies[i];
+		}
+	}
+	return NULL;
+}
+
+int parse_connector_xml(xmlNode *xml, connector_t *connect) {
+	int error = 0;
+
+	error = error || 
+		parse_attrib_to_enum(xml, (int *)&connect->type, "type", true, 0, conn_type_enum_map);
+	error = error || parse_attrib_to_int(xml, &connect->id, "id", true, 0);
+
+	xmlNode *xnode;
+	int attach_count = 0;
+	double *x_dest[2] = {&connect->x1, &connect->x2};
+	double *y_dest[2] = {&connect->y1, &connect->y2};
+	body_t **body_dest[2] = {&connect->body_1, &connect->body_2};
+	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
+		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "attach") ) {
+			if(attach_count >= 2) {
+				ERROR("A <connector> element must only have two <attach> sub-elements!\n");
+				return -1;
+			}
+
+			int err = 0;
+			int id;
+			double x, y;
+			err = err || parse_attrib_to_double(xnode, x_dest[attach_count], "x", true, 0);
+			err = err || parse_attrib_to_double(xnode, y_dest[attach_count], "y", true, 0);
+			err = err || parse_attrib_to_int(xnode, &id, "id", true, 0);
+			if(err) {
+				ERROR("Error parsing attributes from <attach> element!\n");
+				return -1;
+			}
+
+			body_t *body = lookup_body_by_id(id);
+			if(body == NULL) {
+				ERROR("body ID (%d) referenced by <attach> element does exist!\n", id);
+				return -1;
+			}
+			*body_dest[attach_count] = body;
+
+			attach_count++;
+		}
+	}
+
+	if(attach_count < 2) {
+		ERROR("A <connector> element must have two <attach> sub-elements!\n");
+		return -1;
+	}
+	return 0;
+}
+
 int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
-	error = error || parse_attrib_to_int(xml, &body->id, "id", false, -1);
+	error = error || parse_attrib_to_int(xml, &body->id, "id", true, -1);
 	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
@@ -600,6 +763,12 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 		exit(-1); \
 	}
 
+#define DIE_IF_TOO_MANY_CONNECTORS() \
+	if(app_data.num_connectors >= MAX_CONNECTORS) { \
+		ERROR("Maximum number of connectors (%d) exceeded!\n", MAX_CONNECTORS); \
+		exit(-1); \
+	}
+
 int parse_config_xml(xmlNode *xml) {
 	xmlNode *curNode;
 	printf("parsing config XML...\n");
@@ -616,6 +785,7 @@ int parse_config_xml(xmlNode *xml) {
 			if(parse_ball_xml(curNode, ball)) {
 				ERROR("*** Error parsing \"ball\" XML into ball_t struct!\n");
 				ball_dealloc(ball);
+				continue;
 			}
 			app_data.bodies[app_data.num_bodies++] = (body_t *)ball;
 		}
@@ -627,6 +797,7 @@ int parse_config_xml(xmlNode *xml) {
 			if(parse_block_xml(curNode, block)) {
 				ERROR("*** Error parsing \"block\" XML into block_t struct!\n");
 				block_dealloc(block);
+				continue;
 			}
 			app_data.bodies[app_data.num_bodies++] = (body_t *)block;
 		}
@@ -638,8 +809,21 @@ int parse_config_xml(xmlNode *xml) {
 			if(parse_custom_xml(curNode, cust)) {
 				ERROR("*** Error parsing \"custom\" XML into custom_t struct!\n");
 				custom_dealloc(cust);
+				continue;
 			}
 			app_data.bodies[app_data.num_bodies++] = (body_t *)cust;
+		}
+		else if(!strcmp(curNode->name, "connector")) {
+			DIE_IF_TOO_MANY_CONNECTORS();
+			printf("Got \"connectors\" element!\n");
+			connector_t *connect = connector_alloc();
+			connector_init(connect);
+			if(parse_connector_xml(curNode, connect)) {
+				ERROR("*** Error parsing \"connector\" XML into connector_t struct!\n");
+				connector_dealloc(connect);
+				continue;
+			}
+			app_data.connectors[app_data.num_connectors++] = connect;
 		}
 		else {
 			DEBUG("Unsupported element! (%s)\n", curNode->name);
