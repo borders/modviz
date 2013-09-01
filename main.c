@@ -825,6 +825,9 @@ int parse_config_xml(xmlNode *xml) {
 			}
 			app_data.connectors[app_data.num_connectors++] = connect;
 		}
+		else if(!strcmp(curNode->name, "input_format")) {
+			DEBUG("Got <input_format> element!\n");
+		}
 		else {
 			ERROR("Unsupported element! (%s)\n", curNode->name);
 		}
