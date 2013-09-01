@@ -827,6 +827,7 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		else if(!strcmp(curNode->name, "input_format")) {
 			DEBUG("Got <input_format> element!\n");
+`			
 		}
 		else {
 			ERROR("Unsupported element! (%s)\n", curNode->name);
