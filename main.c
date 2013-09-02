@@ -14,6 +14,7 @@
 
 #define MAX_BODIES     500
 #define MAX_CONNECTORS 500
+#define MAX_INPUT_MAPS 100
 
 #define PRINT_DEBUGS 1
 #define PRINT_ERRORS 1
@@ -106,6 +107,15 @@ typedef struct {
 	bool show_id;
 } connector_t;
 
+typedef enum {
+	DATA_TYPE_DOUBLE
+} data_type_enum;
+
+typedef struct _input_map_t {
+	int field_num; // 1-based
+	void *dest;
+	data_type_enum data_type;
+} input_map_t;
 
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
@@ -113,13 +123,19 @@ typedef struct _app_data_t {
 
 	connector_t *connectors[MAX_CONNECTORS];
 	int num_connectors;
+
+	input_map_t *input_maps[MAX_INPUT_MAPS];
+	int num_input_maps;
+
 } app_data_t;
 
 static app_data_t app_data = {
-	.bodies = NULL,
+	.bodies = {0},
 	.num_bodies = 0,
-	.connectors = NULL,
-	.num_connectors = 0
+	.connectors = {0},
+	.num_connectors = 0,
+	.input_maps = {0},
+	.num_input_maps = 0
 };
 
 int body_init(body_t *self, body_type_enum type) {
@@ -415,6 +431,18 @@ static enum_map_t conn_type_enum_map[] = {
 	{0} // denotes end of array
 };
 
+typedef enum {
+	INPUT_TYPE_TIME,
+	INPUT_TYPE_BODY
+} input_type_enum;
+
+static enum_map_t input_fmt_enum_map[] = {
+	{"time", INPUT_TYPE_TIME},
+	{"body", INPUT_TYPE_BODY},
+
+	{0} // denotes end of array
+};
+
 const char *enum_map_get_string_from_enum(enum_map_t *map, int e) {
 	while(map->string) {
 		if(map->enum_val == e) {
@@ -608,6 +636,79 @@ body_t *lookup_body_by_id(int id) {
 		}
 	}
 	return NULL;
+}
+
+int parse_input_format_xml(xmlNode *xml) {
+	
+	xmlNode *xnode;
+	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
+		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "entry") ) {
+			if(app_data.num_input_maps >= MAX_INPUT_MAPS) {
+				ERROR("Too many input format entries!!\n");
+				exit(-1);
+			}
+
+			int err = 0;
+			int column;
+			input_type_enum type;
+
+			err = parse_attrib_to_int(xnode, &column, "column", true, 0);
+			err = err || 
+				parse_attrib_to_enum(xnode, (int *)&type, "type", true, 0, input_fmt_enum_map);
+			if(err) {
+				return -1;
+			}
+			input_map_t *map = malloc(sizeof(input_map_t));
+			map->field_num = column;
+			switch(type) {
+				case INPUT_TYPE_TIME:
+					break;
+				case INPUT_TYPE_BODY: {
+					int id;
+					char *field_str;
+					err = parse_attrib_to_int(xnode, &id, "id", true, 0);
+					if(err) {
+						return -1;
+					}
+					body_t *body = lookup_body_by_id(id);
+					if(body == NULL) {
+						ERROR("body ID (%d) referenced by <entry> element does exist!\n", id);
+						free(map);
+						return -1;
+					}
+					err = err || parse_attrib_to_string(xnode, &field_str, "field", true, "");
+					if(err) {
+						xmlFree(field_str);
+						free(map);
+						return -1;
+					}
+					if(!strcmp(field_str, "x")) {
+						map->dest = &body->x;
+						map->data_type = DATA_TYPE_DOUBLE;
+					}
+					else if(!strcmp(field_str, "y")) {
+						map->dest = &body->y;
+						map->data_type = DATA_TYPE_DOUBLE;
+					}
+					else if(!strcmp(field_str, "theta")) {
+						map->dest = &body->theta;
+						map->data_type = DATA_TYPE_DOUBLE;
+					}
+					else {
+						ERROR("Unsupported field\n");
+						xmlFree(field_str);
+						free(map);
+						return -1;
+					}
+					app_data.input_maps[app_data.num_input_maps++] = map;
+					
+					break;
+				}
+			}
+		}
+	}
+
+	
 }
 
 int parse_connector_xml(xmlNode *xml, connector_t *connect) {
@@ -819,7 +920,7 @@ int parse_config_xml(xmlNode *xml) {
 			connector_t *connect = connector_alloc();
 			connector_init(connect);
 			if(parse_connector_xml(curNode, connect)) {
-				ERROR("*** Error parsing \"connector\" XML into connector_t struct!\n");
+				ERROR("*** Error parsing <connector> XML into connector_t struct!\n");
 				connector_dealloc(connect);
 				continue;
 			}
@@ -827,7 +928,10 @@ int parse_config_xml(xmlNode *xml) {
 		}
 		else if(!strcmp(curNode->name, "input_format")) {
 			DEBUG("Got <input_format> element!\n");
-`			
+			if(parse_input_format_xml(curNode)) {
+				ERROR("*** Error parsing <input_format> XML!\n");
+				continue;
+			}
 		}
 		else {
 			ERROR("Unsupported element! (%s)\n", curNode->name);
@@ -837,6 +941,7 @@ int parse_config_xml(xmlNode *xml) {
 	DEBUG("**************************\n");
 	DEBUG("Got %d bodies\n", app_data.num_bodies);
 	DEBUG("Got %d connectors\n", app_data.num_connectors);
+	DEBUG("Got %d input_field entries\n", app_data.num_input_maps);
 	return 0;
 }
 
@@ -853,18 +958,6 @@ int main(int argc, char *argv[]) {
 	 * library used.
 	 */
 	LIBXML_TEST_VERSION
-
-	ball_t ball_1;
-	ball_init(&ball_1);
-	body_set_name((body_t *)&ball_1, "hello_world");
-
-	custom_t *pcust_1;
-	pcust_1 = custom_alloc();
-	custom_init(pcust_1);
-	body_set_name((body_t *)pcust_1, "custom_1");
-
-	//printf("ball_1's name is: \"%s\"\n", ((body_t *)&ball_1)->name);
-	//printf("cust_1's name is: \"%s\"\n", ((body_t *)pcust_1)->name);
 
 	xmlDocPtr doc;
 	xmlNodePtr root;
