@@ -127,6 +127,7 @@ typedef struct _app_data_t {
 	input_map_t *input_maps[MAX_INPUT_MAPS];
 	int num_input_maps;
 
+	double time;
 } app_data_t;
 
 static app_data_t app_data = {
@@ -498,7 +499,7 @@ int parse_attrib_to_enum(
 	}
 	*dest = e;
 	xmlFree(val_str);
-	printf("successfully parsed the \"%s\" attribute into an enum (%d)\n", attrib_name, e);
+	printf("  parsed the \"%s\" attribute into an enum (%d)\n", attrib_name, e);
 	return 0;
 }
 
@@ -523,7 +524,7 @@ int parse_attrib_to_int(xmlNode *xml, int *dest, char *attrib_name, bool require
 	}
 	*dest = i;
 	xmlFree(val_str);
-	printf("successfully parsed the \"%s\" attribute into an integer (%d)\n", attrib_name, i);
+	printf("  parsed the \"%s\" attribute into an integer (%d)\n", attrib_name, i);
 	return 0;
 }
 
@@ -547,7 +548,7 @@ int parse_attrib_to_string(xmlNode *xml, char **dest, char *attrib_name, bool re
 	}
 	*dest = val_str;
 	/* note: I'm intentionally NOT freeing "val_str" */
-	DEBUG("successfully parsed the \"%s\" attribute into a string (\"%s\")\n", attrib_name, *dest);
+	DEBUG("  parsed the \"%s\" attribute into a string (\"%s\")\n", attrib_name, *dest);
 	return 0;
 }
 
@@ -572,7 +573,7 @@ int parse_attrib_to_double(xmlNode *xml, double *dest, char *attrib_name, bool r
 	}
 	*dest = d;
 	xmlFree(val_str);
-	DEBUG("successfully parsed the \"%s\" attribute into a double (%g)\n", attrib_name, d);
+	DEBUG("  parsed the \"%s\" attribute into a double (%g)\n", attrib_name, d);
 	return 0;
 }
 
@@ -622,7 +623,7 @@ int parse_attrib_to_bool(xmlNode *xml, bool *dest, char *attrib_name, bool requi
 	*dest = b;
 	xmlFree(val_str);
 	DEBUG(
-		"successfully parsed the \"%s\" attribute into a boolean (%s)\n", 
+		"  parsed the \"%s\" attribute into a boolean (%s)\n", 
 		attrib_name, (b ? "TRUE" : "FALSE")
 	);
 	return 0;
@@ -643,6 +644,7 @@ int parse_input_format_xml(xmlNode *xml) {
 	xmlNode *xnode;
 	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
 		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "entry") ) {
+			DEBUG("  Got <entry> element\n");
 			if(app_data.num_input_maps >= MAX_INPUT_MAPS) {
 				ERROR("Too many input format entries!!\n");
 				exit(-1);
@@ -662,6 +664,8 @@ int parse_input_format_xml(xmlNode *xml) {
 			map->field_num = column;
 			switch(type) {
 				case INPUT_TYPE_TIME:
+					map->dest = &app_data.time;
+					map->data_type = DATA_TYPE_DOUBLE;
 					break;
 				case INPUT_TYPE_BODY: {
 					int id;
@@ -700,11 +704,11 @@ int parse_input_format_xml(xmlNode *xml) {
 						free(map);
 						return -1;
 					}
-					app_data.input_maps[app_data.num_input_maps++] = map;
 					
 					break;
 				}
 			}
+			app_data.input_maps[app_data.num_input_maps++] = map;
 		}
 	}
 
