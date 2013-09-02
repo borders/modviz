@@ -1042,18 +1042,65 @@ int parse_config_xml(xmlNode *xml) {
 	return 0;
 }
 
+void print_usage(FILE *stream, char *prog_name) {
+	fprintf(stream, "Usage: %s XML_CONFIG_FILE [DATAFILE]\n", prog_name);
+	fprintf(stream, "\n");
+	fprintf(stream, "DATAFILE may be either a file name/path or \"-\" to denote STDIN.\n");
+	fprintf(stream, "If DATAFILE is not given, STDIN will be used.\n");
+}
+typedef struct {
+	char *fname;
+	int fd;
+	char *line_buf;
+	int line_capacity;
+	int line_length;
+	bool line_complete;
+} input_data_t;
+
+
+int read_line(input_data_t *input) {
+	char c;
+	int ret;
+
+	while( (ret = read(input->fd, &c, 1)) > 0) {
+		if(c == '\n') { // end of line
+			input->line_buf[input->line_length] = '\0';
+			input->line_complete = true;
+			break;
+		}
+		if(input->line_length >= input->line_capacity) {
+			input->line_capacity = 2 * input->line_capacity + 1;
+			input->line_buf = realloc(input->line_buf, input->line_capacity);
+			if(input->line_buf == NULL) {
+				ERROR("Error expanding input line buffer\n");
+				exit(-1);
+			}
+		}
+		input->line_buf[input->line_length++] = c;
+	}
+	if(ret == -1) { // nothing to read yet
+		return 0;
+	}
+	if(ret == 0) { //EOF
+		close(input->fd);
+		DEBUG("End of input file reached\n");
+		return -1;
+	}
+	if(input->line_complete) {
+	}
+	
+}
+
 int main(int argc, char *argv[]) {
 
 	if(argc < 2) {
-		printf("Usage: %s XML_CONFIG_FILE [DATAFILE]\n", argv[0]);
+		print_usage(stdout, argv[0]);
 		return 0;
 	}
 
-	/*
-	 * this initialize the library and check potential ABI mismatches
+	/* this initialize the library and check potential ABI mismatches
 	 * between the version it was compiled for and the actual shared
-	 * library used.
-	 */
+	 * library used. */
 	LIBXML_TEST_VERSION
 
 	xmlDocPtr doc;
@@ -1069,6 +1116,12 @@ int main(int argc, char *argv[]) {
 	//printf("-------\n\n");
 
 	parse_config_xml(root);
+
+	char *infile = "-";
+	if(argc > 2) {
+		infile = argv[2];
+	}
+	int fd = open_file_nonblocking(infile);
 
 	return 0;
 }
