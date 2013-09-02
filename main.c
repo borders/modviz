@@ -15,6 +15,7 @@
 #define MAX_BODIES     500
 #define MAX_CONNECTORS 500
 #define MAX_INPUT_MAPS 100
+#define MAX_GROUNDS 100
 
 #define PRINT_DEBUG 1
 #define PRINT_DEBUG2 1
@@ -115,6 +116,21 @@ typedef struct {
 } connector_t;
 
 typedef enum {
+	GND_TYPE_LINE,
+	GND_TYPE_HASH,
+	GND_TYPE_PIN
+} ground_type_enum;
+
+typedef struct {
+	ground_type_enum type;
+	int id;
+	double x1;
+	double y1;
+	double x2;
+	double y2;
+} ground_t;
+
+typedef enum {
 	DATA_TYPE_DOUBLE
 } data_type_enum;
 
@@ -130,6 +146,9 @@ typedef struct _app_data_t {
 
 	connector_t *connectors[MAX_CONNECTORS];
 	int num_connectors;
+
+	ground_t *grounds[MAX_GROUNDS];
+	int num_grounds;
 
 	input_map_t *input_maps[MAX_INPUT_MAPS];
 	int num_input_maps;
@@ -242,6 +261,30 @@ connector_t *connector_alloc(void) {
 		exit(-1);
 	}
 	return self;
+}
+
+void ground_dealloc(ground_t *self) {
+	if(self) {
+		free(self);
+	}
+}
+
+ground_t *ground_alloc(void) {
+	ground_t *self;
+	self = malloc(sizeof(ground_t));
+	if(self == NULL) {
+		fprintf(stderr, "Error allocating ground_t!\n");
+		exit(-1);
+	}
+	return self;
+}
+
+void ground_init(ground_t *self) {
+	self->type = GND_TYPE_HASH;
+	self->x1 = 0.0;
+	self->y1 = 0.0;
+	self->x2 = 1.0;
+	self->y2 = 0.0;
 }
 
 int connector_init(connector_t *self) {
@@ -435,6 +478,14 @@ typedef struct _enum_map_t {
 static enum_map_t conn_type_enum_map[] = {
 	{"line", CONN_TYPE_LINE},
 	{"spring", CONN_TYPE_SPRING},
+
+	{0} // denotes end of array
+};
+
+static enum_map_t gnd_type_enum_map[] = {
+	{"line", GND_TYPE_LINE},
+	{"hash", GND_TYPE_HASH},
+	{"pin", GND_TYPE_PIN},
 
 	{0} // denotes end of array
 };
@@ -722,6 +773,22 @@ int parse_input_format_xml(xmlNode *xml) {
 	
 }
 
+int parse_ground_xml(xmlNode *xml, ground_t *ground) {
+	int error = 0;
+
+	error = parse_attrib_to_enum(xml, (int *)&ground->type, "type", true, 0, gnd_type_enum_map);
+	error = error || parse_attrib_to_int(xml, &ground->id, "id", false, -1);
+	error = error || parse_attrib_to_double(xml, &ground->x1, "x1", true, 0.);
+	error = error || parse_attrib_to_double(xml, &ground->y1, "y1", true, 0.);
+	error = error || parse_attrib_to_double(xml, &ground->x2, "x2", true, 0.);
+	error = error || parse_attrib_to_double(xml, &ground->y2, "y2", true, 0.);
+	if(error) {
+		ERROR("Error parsing <ground> XML\n");
+		return -1;
+	}
+	return 0;
+}
+
 int parse_connector_xml(xmlNode *xml, connector_t *connect) {
 	int error = 0;
 
@@ -773,8 +840,8 @@ int parse_connector_xml(xmlNode *xml, connector_t *connect) {
 int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
-	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
 	error = error || parse_attrib_to_int(xml, &body->id, "id", true, -1);
+	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
 	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
@@ -881,6 +948,12 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 		exit(-1); \
 	}
 
+#define DIE_IF_TOO_MANY_GROUNDS() \
+	if(app_data.num_grounds >= MAX_GROUNDS) { \
+		ERROR("Maximum number of grounds (%d) exceeded!\n", MAX_GROUNDS); \
+		exit(-1); \
+	}
+
 int parse_config_xml(xmlNode *xml) {
 	xmlNode *curNode;
 	printf("parsing config XML...\n");
@@ -937,6 +1010,18 @@ int parse_config_xml(xmlNode *xml) {
 			}
 			app_data.connectors[app_data.num_connectors++] = connect;
 		}
+		else if(!strcmp(curNode->name, "ground")) {
+			DIE_IF_TOO_MANY_GROUNDS();
+			DEBUG("Got <ground> element!\n");
+			ground_t *ground = ground_alloc();
+			ground_init(ground);
+			if(parse_ground_xml(curNode, ground)) {
+				ERROR("*** Error parsing <ground> XML into ground_t struct!\n");
+				ground_dealloc(ground);
+				continue;
+			}
+			app_data.grounds[app_data.num_grounds++] = ground;
+		}
 		else if(!strcmp(curNode->name, "input_format")) {
 			DEBUG("Got <input_format> element!\n");
 			if(parse_input_format_xml(curNode)) {
@@ -952,6 +1037,7 @@ int parse_config_xml(xmlNode *xml) {
 	DEBUG("**************************\n");
 	DEBUG("Got %d bodies\n", app_data.num_bodies);
 	DEBUG("Got %d connectors\n", app_data.num_connectors);
+	DEBUG("Got %d grounds\n", app_data.num_grounds);
 	DEBUG("Got %d input_field entries\n", app_data.num_input_maps);
 	return 0;
 }
@@ -980,9 +1066,10 @@ int main(int argc, char *argv[]) {
 	//print_element_names(root, 0 );
 	//printf("-------\n\n");
 	//print_all_nodes(root, 0);
+	//printf("-------\n\n");
 
-	printf("-------\n\n");
 	parse_config_xml(root);
+
 	return 0;
 }
 
