@@ -16,13 +16,20 @@
 #define MAX_CONNECTORS 500
 #define MAX_INPUT_MAPS 100
 
-#define PRINT_DEBUGS 1
+#define PRINT_DEBUG 1
+#define PRINT_DEBUG2 1
 #define PRINT_ERRORS 1
 
-#if PRINT_DEBUGS
+#if PRINT_DEBUG
 	#define DEBUG(...) printf(__VA_ARGS__)
 #else
 	#define DEBUG(...) 
+#endif
+
+#if PRINT_DEBUG2
+	#define DEBUG2(...) printf(__VA_ARGS__)
+#else
+	#define DEBUG2(...) 
 #endif
 
 #if PRINT_ERRORS
@@ -481,7 +488,7 @@ int parse_attrib_to_enum(
 		}
 		else {
 			*dest = dflt;
-			DEBUG("Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
+			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
 				attrib_name, enum_map_get_string_from_enum(map, dflt));
 			return 0;
 		}
@@ -512,7 +519,7 @@ int parse_attrib_to_int(xmlNode *xml, int *dest, char *attrib_name, bool require
 		}
 		else {
 			*dest = dflt;
-			DEBUG("Didn't find \"%s\" attribute. Using default value (%d) instead...\n", attrib_name, dflt);
+			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%d) instead...\n", attrib_name, dflt);
 			return 0;
 		}
 	}
@@ -542,7 +549,7 @@ int parse_attrib_to_string(xmlNode *xml, char **dest, char *attrib_name, bool re
 				exit(-1);
 			}
 			strcpy(*dest, dflt);
-			DEBUG("Didn't find \"%s\" attribute. Using default value (%s) instead...\n", attrib_name, dflt);
+			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%s) instead...\n", attrib_name, dflt);
 			return 0;
 		}
 	}
@@ -561,7 +568,7 @@ int parse_attrib_to_double(xmlNode *xml, double *dest, char *attrib_name, bool r
 		}
 		else {
 			*dest = dflt;
-			DEBUG("Didn't find \"%s\" attribute. Using default value (%g) instead...\n", attrib_name, dflt);
+			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%g) instead...\n", attrib_name, dflt);
 			return 0;
 		}
 	}
@@ -589,8 +596,8 @@ int parse_attrib_to_bool(xmlNode *xml, bool *dest, char *attrib_name, bool requi
 		}
 		else {
 			*dest = dflt;
-			DEBUG (
-				"Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
+			DEBUG2 (
+				"  Didn't find \"%s\" attribute. Using default value (%s) instead...\n", 
 				attrib_name, dflt ? "TRUE" : "FALSE"
 			);
 			return 0;
@@ -970,9 +977,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	root = xmlDocGetRootElement(doc);
-	print_element_names(root, 0 );
-	printf("-------\n\n");
-	print_all_nodes(root, 0);
+	//print_element_names(root, 0 );
+	//printf("-------\n\n");
+	//print_all_nodes(root, 0);
 
 	printf("-------\n\n");
 	parse_config_xml(root);
