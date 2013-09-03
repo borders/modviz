@@ -17,6 +17,8 @@
 #define MAX_INPUT_MAPS 100
 #define MAX_GROUNDS 100
 
+#define INIT_FRAMES_CAPACITY 1000
+
 #define PRINT_DEBUG 1
 #define PRINT_DEBUG2 1
 #define PRINT_ERRORS 1
@@ -140,6 +142,18 @@ typedef struct _input_map_t {
 	data_type_enum data_type;
 } input_map_t;
 
+typedef char *frame_ptr_t;
+
+frame_ptr_t frame_alloc(int size) {
+	frame_ptr_t fp;
+	fp = malloc(size);
+	if(fp == NULL) {
+		ERROR("Error allocating frame\n");
+		exit(-1);
+	}
+	return fp;
+}
+
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
 	int num_bodies;
@@ -153,17 +167,33 @@ typedef struct _app_data_t {
 	input_map_t *input_maps[MAX_INPUT_MAPS];
 	int num_input_maps;
 
+	frame_ptr_t *frames;	
+	int num_frames;
+	int frames_capacity;
+	int bytes_per_frame;
+
 	double time;
 } app_data_t;
 
-static app_data_t app_data = {
-	.bodies = {0},
-	.num_bodies = 0,
-	.connectors = {0},
-	.num_connectors = 0,
-	.input_maps = {0},
-	.num_input_maps = 0
-};
+static app_data_t app_data;
+
+void app_data_init(app_data_t *d) {
+	d->num_bodies = 0;
+	d->num_connectors = 0;
+	d->num_grounds = 0;
+	d->num_input_maps = 0;
+
+	d->frames = malloc(INIT_FRAMES_CAPACITY * sizeof(frame_ptr_t));
+	if(d->frames == NULL) {
+		ERROR("Error allocating frames\n");
+		exit(-1);
+	}
+	d->frames_capacity = INIT_FRAMES_CAPACITY;
+	d->num_frames = 0;
+	d->bytes_per_frame = 0;
+
+	d->time = 0.0;
+}
 
 int body_init(body_t *self, body_type_enum type) {
 	self->type = type;
@@ -378,7 +408,7 @@ static int load_config(const char *filename, xmlDocPtr *doc_out) {
 
 int open_file_nonblocking(char *fname) {
 	int fd;
-	if(strcmp(fname, "-") != 0) { // dash denotes STDIN
+	if(!strcmp(fname, "-")) { // dash denotes STDIN
 		// STDIN is already open - just make it nonblocking
 		fd = 0; // STDIN = 0
 		int flags;
@@ -1097,6 +1127,8 @@ int main(int argc, char *argv[]) {
 		print_usage(stdout, argv[0]);
 		return 0;
 	}
+
+	app_data_init(&app_data);
 
 	/* this initialize the library and check potential ABI mismatches
 	 * between the version it was compiled for and the actual shared
