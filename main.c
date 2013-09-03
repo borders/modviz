@@ -728,7 +728,7 @@ body_t *lookup_body_by_id(int id) {
 }
 
 int parse_input_format_xml(xmlNode *xml) {
-	
+		
 	xmlNode *xnode;
 	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
 		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "entry") ) {
@@ -754,6 +754,7 @@ int parse_input_format_xml(xmlNode *xml) {
 				case INPUT_TYPE_TIME:
 					map->dest = &app_data.time;
 					map->data_type = DATA_TYPE_DOUBLE;
+					app_data.bytes_per_frame += sizeof(double);
 					break;
 				case INPUT_TYPE_BODY: {
 					int id;
@@ -777,14 +778,17 @@ int parse_input_format_xml(xmlNode *xml) {
 					if(!strcmp(field_str, "x")) {
 						map->dest = &body->x;
 						map->data_type = DATA_TYPE_DOUBLE;
+						app_data.bytes_per_frame += sizeof(double);
 					}
 					else if(!strcmp(field_str, "y")) {
 						map->dest = &body->y;
 						map->data_type = DATA_TYPE_DOUBLE;
+						app_data.bytes_per_frame += sizeof(double);
 					}
 					else if(!strcmp(field_str, "theta")) {
 						map->dest = &body->theta;
 						map->data_type = DATA_TYPE_DOUBLE;
+						app_data.bytes_per_frame += sizeof(double);
 					}
 					else {
 						ERROR("Unsupported field\n");
@@ -792,7 +796,6 @@ int parse_input_format_xml(xmlNode *xml) {
 						free(map);
 						return -1;
 					}
-					
 					break;
 				}
 			}
@@ -1068,6 +1071,7 @@ int parse_config_xml(xmlNode *xml) {
 	DEBUG("Got %d connectors\n", app_data.num_connectors);
 	DEBUG("Got %d grounds\n", app_data.num_grounds);
 	DEBUG("Got %d input_field entries\n", app_data.num_input_maps);
+	DEBUG("Number of bytes per frame: %d\n", app_data.bytes_per_frame);
 	return 0;
 }
 
@@ -1120,6 +1124,30 @@ int read_line(input_data_t *input) {
 	
 }
 
+int split_line_into_fields(char *line, char *fields[], int max_fields) {
+	char *p;
+	int field_count;
+	bool in_field = false;
+	for(p=line, field_count=0; *p != '\0'; p++) {
+		if(isspace(*p)) {
+			*p = '\0'; // replace all whitespace characters with NULL
+			in_field = false;
+		}
+		else { // non-whitespace character
+			if(!in_field) {
+				if(field_count >= max_fields) {
+					ERROR("Too many fields in line!!\n");
+					return -1;
+				}
+				fields[field_count++] = p;
+				in_field = true;
+			}
+		}
+	}
+	return field_count;
+}
+
+#define MAX_FIELDS 30
 int main(int argc, char *argv[]) {
 
 	if(argc < 2) {
@@ -1149,10 +1177,67 @@ int main(int argc, char *argv[]) {
 	parse_config_xml(root);
 
 	char *infile = "-";
+	FILE *fp;
 	if(argc > 2) {
 		infile = argv[2];
+		fp = fopen(infile, "r");
+		if(fp==NULL) {
+			ERROR("Error opening datafile: %s\n", infile);
+			exit(-1);
+		}
 	}
-	int fd = open_file_nonblocking(infile);
+	else {
+		fp = stdin;
+	}
+	//int fd = open_file_nonblocking(infile);
+	char line[2000];
+	while(fgets(line, sizeof(line), fp) != NULL) {
+		int i;
+		char *fields[MAX_FIELDS];
+		int field_count = split_line_into_fields(line, fields, MAX_FIELDS);
+		if(field_count < 0) {
+			continue;
+		}
+
+		#if 0
+		printf("Got %d fields:\n", ret);
+		for(i=0; i < field_count; i++) {
+			printf("  %s\n", fields[i]);
+		}
+		#endif
+
+		for(i=0; i < app_data.num_input_maps; i++) {
+			input_map_t *map = app_data.input_maps[i];
+			if(map->field_num > field_count) {
+				ERROR("Not enough fields!!\n");
+				exit(-1);
+			}
+			int field_index = map->field_num - 1;
+			frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
+			char *frame_pos = pframe;
+			switch(map->data_type) {
+				case DATA_TYPE_DOUBLE: {
+					double d;
+					if(parse_double(fields[field_index], &d)) {
+						ERROR("Error parsing double from field!!\n");
+						exit(-1);
+					}
+					printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
+					*((double *)frame_pos) = d;
+					frame_pos += sizeof(double);
+					break;
+				}
+				default:
+					ERROR("Unknown data type!\n");
+			}
+		}
+		
+	}
+
+	if(!feof(fp)) {
+		ERROR("Error while reading datafile!!\n");
+		exit(-1);
+	}
 
 	return 0;
 }
