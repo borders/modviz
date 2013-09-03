@@ -1148,7 +1148,7 @@ int split_line_into_fields(char *line, char *fields[], int max_fields) {
 }
 
 void print_body_info(body_t *body) {
-	printf("Body id %4d: (%7g,%7g,%7g)\n", 
+	printf("Body id %-4d: (%6g,%6g,%6g)\n", 
 		body->id, body->x, body->y, body->theta);
 }
 
