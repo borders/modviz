@@ -1262,6 +1262,9 @@ int main(int argc, char *argv[]) {
 		printf("frame #%05d:\n", i);
 		int j;
 		frame_ptr_t p = app_data.frames[i];
+
+		/* loop over all input maps, stuffing the data
+		 * in the frame into the proper destination location */
 		for(j=0; j < app_data.num_input_maps; j++) {
 			input_map_t *map = app_data.input_maps[j];
 			switch(map->data_type) {
@@ -1274,6 +1277,9 @@ int main(int argc, char *argv[]) {
 					exit(-1);
 			}
 		}
+
+		/* Loop over all bodies (and eventually connectors, etc.),
+		 * and (for now) print the body info */
 		for(j=0; j < app_data.num_bodies; j++) {
 			print_body_info(app_data.bodies[j]);
 		}
