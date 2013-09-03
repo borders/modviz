@@ -1147,6 +1147,11 @@ int split_line_into_fields(char *line, char *fields[], int max_fields) {
 	return field_count;
 }
 
+void print_body_info(body_t *body) {
+	printf("Body id %4d: (%7g,%7g,%7g)\n", 
+		body->id, body->x, body->y, body->theta);
+}
+
 #define MAX_FIELDS 30
 int main(int argc, char *argv[]) {
 
@@ -1206,6 +1211,8 @@ int main(int argc, char *argv[]) {
 		}
 		#endif
 
+		frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
+		char *frame_pos = pframe;
 		for(i=0; i < app_data.num_input_maps; i++) {
 			input_map_t *map = app_data.input_maps[i];
 			if(map->field_num > field_count) {
@@ -1213,8 +1220,6 @@ int main(int argc, char *argv[]) {
 				exit(-1);
 			}
 			int field_index = map->field_num - 1;
-			frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
-			char *frame_pos = pframe;
 			switch(map->data_type) {
 				case DATA_TYPE_DOUBLE: {
 					double d;
@@ -1231,12 +1236,47 @@ int main(int argc, char *argv[]) {
 					ERROR("Unknown data type!\n");
 			}
 		}
+		if(app_data.num_frames >= app_data.frames_capacity) {
+			app_data.frames_capacity *= 3;
+			app_data.frames = realloc(app_data.frames, sizeof(app_data.frames[0]));
+			if(app_data.frames == NULL) {
+				ERROR("Error expanding size of 'frames'.\n");
+				exit(-1);
+			}
+		}
+		app_data.frames[app_data.num_frames++] = pframe;
 		
 	}
 
 	if(!feof(fp)) {
 		ERROR("Error while reading datafile!!\n");
 		exit(-1);
+	}
+
+	printf("Got %d frames\n", app_data.num_frames);
+	
+	printf("-------------------------------------\n");
+
+	int i;
+	for(i=0; i < app_data.num_frames; i++) {
+		printf("frame #%05d:\n", i);
+		int j;
+		frame_ptr_t p = app_data.frames[i];
+		for(j=0; j < app_data.num_input_maps; j++) {
+			input_map_t *map = app_data.input_maps[j];
+			switch(map->data_type) {
+				case DATA_TYPE_DOUBLE:
+					*((double *)(map->dest)) = *((double *)p);
+					p += sizeof(double);
+					break;
+				default:
+					ERROR("Unhandled data type!!!\n");
+					exit(-1);
+			}
+		}
+		for(j=0; j < app_data.num_bodies; j++) {
+			print_body_info(app_data.bodies[j]);
+		}
 	}
 
 	return 0;
