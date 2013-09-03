@@ -799,8 +799,7 @@ int parse_input_format_xml(xmlNode *xml) {
 			app_data.input_maps[app_data.num_input_maps++] = map;
 		}
 	}
-
-	
+	return 0;
 }
 
 int parse_ground_xml(xmlNode *xml, ground_t *ground) {
