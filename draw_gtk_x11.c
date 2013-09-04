@@ -239,6 +239,63 @@ float draw_get_text_height(void *dp, char *text, float font_size) {
 
 void draw_text(void *dp, char *text, float font_size, float x, float y, int anchor) {
 	x_draw_t *d = (x_draw_t *)dp;
+
+  double x_left, y_bottom;
+  double w, h;
+
+  int direction;
+  int font_ascent;
+  int font_descent;
+  XCharStruct overall;
+  XFontStruct *fp = XQueryFont(d->xdisp, XGContextFromGC(d->gc));
+  XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
+  XFreeFontInfo(NULL, fp, 1);
+
+  w = overall.width;
+  h = overall.ascent + overall.descent;
+
+  switch(anchor) {
+    case ANCHOR_TOP_LEFT:
+      x_left = x;
+      y_bottom = y + h;
+      break;
+    case ANCHOR_TOP_MIDDLE:
+      x_left = x - w/2;
+      y_bottom = y + h;
+      break;
+    case ANCHOR_TOP_RIGHT:
+      x_left = x - w;
+      y_bottom = y + h;
+      break;
+    case ANCHOR_MIDDLE_LEFT:
+      x_left = x;
+      y_bottom = y + h/2;
+      break;
+    case ANCHOR_MIDDLE_MIDDLE:
+      x_left = x - w/2;
+      y_bottom = y + h/2;
+      break;
+    case ANCHOR_MIDDLE_RIGHT:
+      x_left = x - w;
+      y_bottom = y + h/2;
+      break;
+    case ANCHOR_BOTTOM_LEFT:
+      x_left = x;
+      y_bottom = y;
+      break;
+    case ANCHOR_BOTTOM_MIDDLE:
+      x_left = x - w/2;
+      y_bottom = y;
+      break;
+    case ANCHOR_BOTTOM_RIGHT:
+      x_left = x - w;
+      y_bottom = y;
+      break;
+    default:
+      x_left = x;
+      y_bottom = y;
+  }
+	XDrawString(d->xdisp, d->xwin, d->gc, x_left, y_bottom, text, strlen(text));
 }
 
 static uint8_t color_float_to_u8(float f) {

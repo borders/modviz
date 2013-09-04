@@ -1211,10 +1211,12 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_set_color(dp, 0.5,0.5,0.5);
 	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymin), X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymax));
 	draw_line(dp, X_USER_TO_PX(0.8*xmin), Y_USER_TO_PX(0), X_USER_TO_PX(0.8*xmax), Y_USER_TO_PX(0));
-	
+
+	draw_set_color(dp, 1, 0, 0);	
 	draw_circle_filled(dp, X_USER_TO_PX(2), Y_USER_TO_PX(2), L_USER_TO_PX(1));
 
-	draw_line(dp, 10, 10, 50, 50);
+	draw_set_color(dp, 0, 1, 0);	
+	draw_text(dp, "hello world", 10, X_USER_TO_PX(0), Y_USER_TO_PX(0), ANCHOR_MIDDLE_MIDDLE);
 
 	draw_finish(dp); 
 	return TRUE;
