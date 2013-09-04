@@ -29,6 +29,9 @@ void draw_line(draw_ptr dp, float x1, float y1, float x2, float y2);
 void draw_circle_outline(draw_ptr dp, float x_c, float y_c, float radius);
 void draw_circle_filled(draw_ptr dp, float x_c, float y_c, float radius);
 
+void draw_rectangle_outline(draw_ptr dp, float x1, float y1, float x2, float y2);
+void draw_rectangle_filled(draw_ptr dp, float x1, float y1, float x2, float y2);
+
 void draw_polygon_outline(draw_ptr dp, float *x, float *y, int num_points);
 void draw_polygon_filled(draw_ptr dp, float *x, float *y, int num_points);
 

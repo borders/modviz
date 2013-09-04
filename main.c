@@ -5,9 +5,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <gtk/gtk.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include "draw.h"
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -154,6 +158,12 @@ frame_ptr_t frame_alloc(int size) {
 	return fp;
 }
 
+typedef struct {
+	GtkWidget *canvas;
+	GtkWidget *dt_scale;
+	draw_ptr drawer;
+} gui_t;
+
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
 	int num_bodies;
@@ -173,6 +183,11 @@ typedef struct _app_data_t {
 	int bytes_per_frame;
 
 	double time;
+
+	gui_t gui;
+
+	int active_frame_index;
+
 } app_data_t;
 
 static app_data_t app_data;
@@ -1152,6 +1167,127 @@ void print_body_info(body_t *body) {
 		body->id, body->x, body->y, body->theta);
 }
 
+#define X_USER_TO_PX(x) (x_m * x + x_b)
+#define Y_USER_TO_PX(y) (y_m * y + y_b)
+
+gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+	draw_ptr dp = app_data.gui.drawer;
+	draw_start(dp); 
+
+	float width, height;
+	draw_get_canvas_dims(dp, &width, &height);
+
+	// first, fill with background color
+	draw_set_color(dp, 1,1,1);
+	draw_rectangle_filled(dp, 0, 0, width, height);
+
+	float xmin = -10.0;
+	float xmax = +10.0;
+	float ymin = -10.0;
+	float ymax = +10.0;
+
+	// these are used to convert from user coordinates to pixel coordinates
+	float x_m, x_b;
+	float y_m, y_b;
+
+	x_m = width/(xmax-xmin);
+	x_b = -x_m * xmin;
+	y_m = height/(ymin-ymax);
+	y_b = -y_m * ymax;
+	
+	// now draw the ground coordinate system
+	draw_set_color(dp, 0.5,0.5,0.5);
+	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymin), X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymax));
+	draw_line(dp, X_USER_TO_PX(0.8*xmin), Y_USER_TO_PX(0), X_USER_TO_PX(0.8*xmax), Y_USER_TO_PX(0));
+	
+
+	draw_line(dp, 10, 10, 50, 50);
+
+	draw_finish(dp); 
+	return TRUE;
+}
+
+#if 0
+void draw_ball(ball_t *ball) {
+	draw_circle_outline(app_data.gui.drawer, );
+}
+#endif
+
+gboolean update_func(gpointer data) {
+	//printf("running update_func()\n");
+
+	printf("frame #%05d:\n", app_data.active_frame_index);
+	int j;
+	frame_ptr_t p = app_data.frames[app_data.active_frame_index];
+
+	/* loop over all input maps, stuffing the data
+	 * in the frame into the proper destination location */
+	for(j=0; j < app_data.num_input_maps; j++) {
+		input_map_t *map = app_data.input_maps[j];
+		switch(map->data_type) {
+			case DATA_TYPE_DOUBLE:
+				*((double *)(map->dest)) = *((double *)p);
+				p += sizeof(double);
+				break;
+			default:
+				ERROR("Unhandled data type!!!\n");
+				exit(-1);
+		}
+	}
+
+	// request a redraw of the canvas, which will redraw everything
+  gtk_widget_queue_draw(app_data.gui.canvas);
+
+	// advance frame counter
+	app_data.active_frame_index++;
+	if(app_data.active_frame_index >= app_data.num_frames) {
+		app_data.active_frame_index = app_data.num_frames - 1;
+	}
+
+	return TRUE;
+}
+
+void init_gui(void) {
+  GtkWidget *window;
+  GtkWidget *v_box;
+  GtkWidget *button;
+  GtkWidget *save_button;
+
+  gtk_init (NULL, NULL);
+
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+
+  v_box = gtk_vbox_new(FALSE, 10);
+  gtk_container_add (GTK_CONTAINER (window), v_box);
+
+  button = gtk_button_new_with_label("Pause");
+  gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
+  //g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
+
+  save_button = gtk_button_new_with_label("Capture Plot to File (PNG)");
+  gtk_box_pack_start (GTK_BOX(v_box), save_button, FALSE, FALSE, 0);
+  //g_signal_connect(save_button, "clicked", G_CALLBACK(save_button_activate), NULL);
+
+	app_data.gui.dt_scale = gtk_hscale_new_with_range(0.00025, 0.05, 0.00025);
+	gtk_scale_set_digits((GtkScale *)app_data.gui.dt_scale, 5);
+	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.dt_scale, FALSE, FALSE, 0);
+
+	gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, 0.05);
+
+  app_data.gui.canvas = gtk_drawing_area_new();
+  gtk_widget_set_size_request(app_data.gui.canvas, 700,400);
+  gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.canvas, TRUE, TRUE, 0);
+  g_signal_connect(app_data.gui.canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
+
+	app_data.gui.drawer = draw_create(app_data.gui.canvas);
+
+  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+
+  gtk_widget_show_all (window);
+
+	g_timeout_add(1000, update_func, NULL);
+}
+
 #define MAX_FIELDS 30
 int main(int argc, char *argv[]) {
 
@@ -1254,6 +1390,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	printf("Got %d frames\n", app_data.num_frames);
+	app_data.active_frame_index = 0;
+	
+	printf("-------------------------------------\n");
+
+	init_gui();
+	gtk_main();
 	
 	printf("-------------------------------------\n");
 

@@ -122,6 +122,57 @@ void draw_line(void *dp, float x1, float y1, float x2, float y2) {
 	XDrawLine(d->xdisp, d->xwin, d->gc, x1, y1, x2, y2);
 }
 
+
+void draw_rectangle_filled(void *dp, float x1, float y1, float x2, float y2) {
+	x_draw_t *d = (x_draw_t *)dp;
+
+	float x_left, width;
+	float y_upper, height;
+	if(x1 < x2) {
+		x_left = x1;
+		width = x2 - x1;
+	}
+	else {
+		x_left = x2;
+		width = x1 - x2;
+	}
+	if(y1 < y2) {
+		y_upper = y1;
+		height = y2 - y1;
+	}
+	else {
+		y_upper = y2;
+		height = y1 - y2;
+	}
+	
+	XFillRectangle(d->xdisp, d->xwin, d->gc, x_left, y_upper, width, height);
+}
+
+void draw_rectangle_outline(void *dp, float x1, float y1, float x2, float y2) {
+	x_draw_t *d = (x_draw_t *)dp;
+
+	float x_left, width;
+	float y_upper, height;
+	if(x1 < x2) {
+		x_left = x1;
+		width = x2 - x1;
+	}
+	else {
+		x_left = x2;
+		width = x1 - x2;
+	}
+	if(y1 < y2) {
+		y_upper = y1;
+		height = y2 - y1;
+	}
+	else {
+		y_upper = y2;
+		height = y1 - y2;
+	}
+	
+	XDrawRectangle(d->xdisp, d->xwin, d->gc, x_left, y_upper, width, height);
+}
+
 void draw_circle_outline(void *dp, float x_c, float y_c, float radius) {
 	x_draw_t *d = (x_draw_t *)dp;
 	XDrawArc(d->xdisp, d->xwin, d->gc, x_c, y_c, 2*radius, 2*radius, 0, 23040);
