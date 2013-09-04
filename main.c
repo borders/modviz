@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include <gtk/gtk.h>
 
@@ -1219,6 +1220,8 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all bodies
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
+		float sin_ = sin(body->theta);
+		float cos_ = cos(body->theta);
 		switch(body->type) {
 			case BODY_TYPE_BALL: {
 				draw_set_color(dp, 1,0,0);
@@ -1236,16 +1239,14 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 					dp,
 					X_USER_TO_PX(body->x),
 					Y_USER_TO_PX(body->y),
-					X_USER_TO_PX(body->x + r * cos(body->theta) ),
-					Y_USER_TO_PX(body->y + r * sin(body->theta) )
+					X_USER_TO_PX(body->x + r * cos_ ),
+					Y_USER_TO_PX(body->y + r * sin_ )
 				);
 				break;
 			}
 			case BODY_TYPE_BLOCK: {
 				block_t *block = (block_t *)body;
 				draw_set_color(dp, 0,0,1);
-				float sin_ = sin(body->theta);
-				float cos_ = cos(body->theta);
 				float x[4], y[4];
 				x[0] = X_USER_TO_PX(body->x + block->x1 * cos_ - block->y1 * sin_);
 				y[0] = Y_USER_TO_PX(body->y + block->x1 * sin_ + block->y1 * cos_);
@@ -1261,8 +1262,24 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				draw_polygon_filled(dp, x, y, 4);
 				break;
 			}
-			case BODY_TYPE_CUSTOM:
+			case BODY_TYPE_CUSTOM: {
+				custom_t *cust = (custom_t *)body;
+				draw_set_color(dp, 0,1,0);
+				float *x = malloc(cust->node_count);
+				float *y = malloc(cust->node_count);
+				assert(x && y);
+
+				int i;
+				for(i=0; i<cust->node_count; i++) {
+					x[i] = X_USER_TO_PX(body->x + cust->node_x[i] * cos_ - cust->node_y[i] * sin_);
+					y[i] = Y_USER_TO_PX(body->y + cust->node_x[i] * sin_ + cust->node_y[i] * cos_);
+				}
+				draw_polygon_filled(dp, x, y, cust->node_count);
+
+				free(x);
+				free(y);
 				break;
+			}
 			default:
 				ERROR("Unsupported body type!\n");
 				exit(-1);

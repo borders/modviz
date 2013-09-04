@@ -23,8 +23,8 @@
 	<custom 
 		id="5"
 		name="hex" 
-		x="0.0" 
-		y="0.0" 
+		x="-5.0" 
+		y="-7.0" 
 		theta="0.1" 
 	>
 		<node x="0.0" y="0.0" />
@@ -48,7 +48,7 @@
 		<entry column="1" type="time" />
 		<entry column="2" type="body" id="1" field="x" />
 		<entry column="3" type="body" id="1" field="y" />
-		<entry column="4" type="body" id="3" field="theta" />
+		<entry column="4" type="body" id="4" field="theta" />
 	</input_format>
 
 </modviz_config>
