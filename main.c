@@ -1210,11 +1210,11 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	
 	// now draw the ground coordinate system
 	draw_set_color(dp, 0.5,0.5,0.5);
-	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymin), X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymax));
-	draw_line(dp, X_USER_TO_PX(0.8*xmin), Y_USER_TO_PX(0), X_USER_TO_PX(0.8*xmax), Y_USER_TO_PX(0));
+	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(ymin), X_USER_TO_PX(0), Y_USER_TO_PX(ymax));
+	draw_line(dp, X_USER_TO_PX(xmin), Y_USER_TO_PX(0), X_USER_TO_PX(xmax), Y_USER_TO_PX(0));
 
-	draw_set_color(dp, 0, 0, 0);	
-	draw_text(dp, "hello world", 10, X_USER_TO_PX(0), Y_USER_TO_PX(0), ANCHOR_MIDDLE_MIDDLE);
+	//draw_set_color(dp, 0, 0, 0);	
+	//draw_text(dp, "hello world", 10, X_USER_TO_PX(0), Y_USER_TO_PX(0), ANCHOR_MIDDLE_MIDDLE);
 
 	// draw all bodies
 	for(i=0; i < app_data.num_bodies; i++) {
@@ -1223,12 +1223,14 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case BODY_TYPE_BALL: {
 				draw_set_color(dp, 1,0,0);
 				float r = ((ball_t *)body)->radius;
+				// draw the ball itself
 				draw_circle_filled (
 					dp, 
 					X_USER_TO_PX(body->x), 
 					Y_USER_TO_PX(body->y), 
 					L_USER_TO_PX(r)
 				);
+				// draw a radial line on it to indicate rotation angle
 				draw_set_color(dp, 0,0,0);
 				draw_line (
 					dp,
@@ -1239,8 +1241,26 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				);
 				break;
 			}
-			case BODY_TYPE_BLOCK:
+			case BODY_TYPE_BLOCK: {
+				block_t *block = (block_t *)body;
+				draw_set_color(dp, 0,0,1);
+				float sin_ = sin(body->theta);
+				float cos_ = cos(body->theta);
+				float x[4], y[4];
+				x[0] = X_USER_TO_PX(body->x + block->x1 * cos_ - block->y1 * sin_);
+				y[0] = Y_USER_TO_PX(body->y + block->x1 * sin_ + block->y1 * cos_);
+
+				x[1] = X_USER_TO_PX(body->x + block->x2 * cos_ - block->y1 * sin_);
+				y[1] = Y_USER_TO_PX(body->y + block->x2 * sin_ + block->y1 * cos_);
+
+				x[2] = X_USER_TO_PX(body->x + block->x2 * cos_ - block->y2 * sin_);
+				y[2] = Y_USER_TO_PX(body->y + block->x2 * sin_ + block->y2 * cos_);
+
+				x[3] = X_USER_TO_PX(body->x + block->x1 * cos_ - block->y2 * sin_);
+				y[3] = Y_USER_TO_PX(body->y + block->x1 * sin_ + block->y2 * cos_);
+				draw_polygon_filled(dp, x, y, 4);
 				break;
+			}
 			case BODY_TYPE_CUSTOM:
 				break;
 			default:

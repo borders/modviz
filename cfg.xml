@@ -9,9 +9,9 @@
 		theta="0.0"
 	/>
 
-	<ball name="small pulley" id="2" radius="0.4" x="0.0" y="0.0" theta="0.0" />
+	<ball name="small pulley" id="2" radius="0.4" x="-2.3" y="1.6" theta="0.0" />
 
-	<block id="3" name="small_block" x1="0.0" y1="0.0" x2="2.0" y2="3.5" theta="0.0" />
+	<block id="3" name="small_block" x1="0.0" y1="0.0" x2="2.0" y2="3.0" x="-2.0" y="-2.0" theta="0.0" />
 
 	<custom id="4" name="crank" x="0.0" y="0.0" theta="0.1" >
 		<node x="0.0" y="0.0" />
@@ -48,7 +48,7 @@
 		<entry column="1" type="time" />
 		<entry column="2" type="body" id="1" field="x" />
 		<entry column="3" type="body" id="1" field="y" />
-		<entry column="4" type="body" id="1" field="theta" />
+		<entry column="4" type="body" id="3" field="theta" />
 	</input_format>
 
 </modviz_config>
