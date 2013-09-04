@@ -3,13 +3,13 @@
 	<ball
 		name="main pulley"
 		id="1"
-		radius="2.3"
+		radius="1.5"
 		x="0.0"
 		y="0.0"
 		theta="0.0"
 	/>
 
-	<ball name="small pulley" id="2" radius="1.6" x="0.0" y="0.0" theta="0.0" />
+	<ball name="small pulley" id="2" radius="0.4" x="0.0" y="0.0" theta="0.0" />
 
 	<block id="3" name="small_block" x1="0.0" y1="0.0" x2="2.0" y2="3.5" theta="0.0" />
 

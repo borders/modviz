@@ -1174,6 +1174,7 @@ void print_body_info(body_t *body) {
 gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_ptr dp = app_data.gui.drawer;
 	draw_start(dp); 
+	int i, j;
 
 	float width, height;
 	draw_get_canvas_dims(dp, &width, &height);
@@ -1212,21 +1213,35 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymin), X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymax));
 	draw_line(dp, X_USER_TO_PX(0.8*xmin), Y_USER_TO_PX(0), X_USER_TO_PX(0.8*xmax), Y_USER_TO_PX(0));
 
-	draw_set_color(dp, 1, 0, 0);	
-	draw_circle_filled(dp, X_USER_TO_PX(2), Y_USER_TO_PX(2), L_USER_TO_PX(1));
-
-	draw_set_color(dp, 0, 1, 0);	
+	draw_set_color(dp, 0, 0, 0);	
 	draw_text(dp, "hello world", 10, X_USER_TO_PX(0), Y_USER_TO_PX(0), ANCHOR_MIDDLE_MIDDLE);
+
+	// draw all bodies
+	for(i=0; i < app_data.num_bodies; i++) {
+		body_t *body = app_data.bodies[i];
+		switch(body->type) {
+			case BODY_TYPE_BALL:
+				draw_set_color(dp, 1,0,0);
+				draw_circle_filled (
+					dp, 
+					X_USER_TO_PX(body->x), 
+					Y_USER_TO_PX(body->y), 
+					L_USER_TO_PX( ((ball_t *)body)->radius )
+				);
+				break;
+			case BODY_TYPE_BLOCK:
+				break;
+			case BODY_TYPE_CUSTOM:
+				break;
+			default:
+				ERROR("Unsupported body type!\n");
+				exit(-1);
+		}
+	}
 
 	draw_finish(dp); 
 	return TRUE;
 }
-
-#if 0
-void draw_ball(ball_t *ball) {
-	draw_circle_outline(app_data.gui.drawer, );
-}
-#endif
 
 gboolean update_func(gpointer data) {
 	//printf("running update_func()\n");
