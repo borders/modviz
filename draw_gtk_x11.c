@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include <gtk/gtk.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xos.h>
@@ -47,20 +49,6 @@ void *draw_create(void *canvas) {
 	d->xdisp = NULL;
 	d->xwin = -1;
 
-	d->gc = XCreateGC(d->xdisp, d->xwin, 0, NULL);
-
-	// intiialize color to BLACK
-	d->color = 0xFF000000;
-	draw_set_color(d, 0.0, 0.0, 0.0);
-
-	// initialize line width to 1
-	d->line_attribs.width = -1;
-	d->line_attribs.style = LineSolid;
-	draw_set_line_width(d, 1.0);
-
-	// setup some other X stuff
-	XSetFillStyle(d->xdisp, d->gc, FillSolid);
-
 	return (void *)d;
 }
 
@@ -70,15 +58,36 @@ void draw_destroy(void *dp) {
 	}
 }
 
-void draw_start(void *d) {
+void draw_start(void *dp) {
+	x_draw_t *d = (x_draw_t *)dp;
+	if(d->xdisp == NULL) {
+		d->xdisp = gdk_x11_drawable_get_xdisplay(d->widget->window);
+		d->xwin =gdk_x11_drawable_get_xid(d->widget->window);	
+
+		d->gc = XCreateGC(d->xdisp, d->xwin, 0, NULL);
+
+		// intiialize color to BLACK
+		d->color = 0xFF000000;
+		draw_set_color(d, 0.0, 0.0, 0.0);
+
+		// initialize line width to 1
+		d->line_attribs.width = -1;
+		d->line_attribs.style = LineSolid;
+		draw_set_line_width(d, 1.0);
+
+		// setup some other X stuff
+		XSetFillStyle(d->xdisp, d->gc, FillSolid);
+	}
+
+}
+
+void draw_finish(void *dp) {
+	x_draw_t *d = (x_draw_t *)dp;
 	;
 }
 
-void draw_finish(void *d) {
-	;
-}
-
-void draw_get_canvas_dims(void *d, float *width_out, float *height_out);
+void draw_get_canvas_dims(void *dp, float *width_out, float *height_out) {
+	x_draw_t *d = (x_draw_t *)dp;
 	Window root_win;
 	unsigned int w, h;
 	int x, y;
@@ -88,7 +97,8 @@ void draw_get_canvas_dims(void *d, float *width_out, float *height_out);
 	*height_out = (float)h;
 }
 
-float draw_get_canvas_width(void *d);
+float draw_get_canvas_width(void *dp) {
+	x_draw_t *d = (x_draw_t *)dp;
 	Window root_win;
 	unsigned int w, h;
 	int x, y;
@@ -97,7 +107,8 @@ float draw_get_canvas_width(void *d);
 	return ((float)w);
 }
 
-float draw_get_canvas_height(void *d);
+float draw_get_canvas_height(void *dp) {
+	x_draw_t *d = (x_draw_t *)dp;
 	Window root_win;
 	unsigned int w, h;
 	int x, y;
@@ -106,20 +117,24 @@ float draw_get_canvas_height(void *d);
 	return ((float)h);
 }
 
-void draw_line(void *d, float x1, float y1, float x2, float y2) {
+void draw_line(void *dp, float x1, float y1, float x2, float y2) {
+	x_draw_t *d = (x_draw_t *)dp;
 	XDrawLine(d->xdisp, d->xwin, d->gc, x1, y1, x2, y2);
 }
 
-void draw_circle_outline(void *d, float x_c, float y_c, float radius) {
+void draw_circle_outline(void *dp, float x_c, float y_c, float radius) {
+	x_draw_t *d = (x_draw_t *)dp;
 	XDrawArc(d->xdisp, d->xwin, d->gc, x_c, y_c, 2*radius, 2*radius, 0, 23040);
 }
 
-void draw_circle_filled(void *d, float x_c, float y_c, float radius) {
+void draw_circle_filled(void *dp, float x_c, float y_c, float radius) {
+	x_draw_t *d = (x_draw_t *)dp;
 	XFillArc(d->xdisp, d->xwin, d->gc, x_c, y_c, 2*radius, 2*radius, 0, 23040);
 }
 
 #define MAX_POLYGON_POINTS 2000
-void draw_polygon_outline(void *d, float *x, float *y, int num_points);
+void draw_polygon_outline(void *dp, float *x, float *y, int num_points) {
+	x_draw_t *d = (x_draw_t *)dp;
 	static XPoint points[MAX_POLYGON_POINTS];
 	assert(num_points <= MAX_POLYGON_POINTS);
 	int i;
@@ -130,7 +145,8 @@ void draw_polygon_outline(void *d, float *x, float *y, int num_points);
 	XDrawLines(d->xdisp, d->xwin, d->gc, points, num_points, CoordModeOrigin);
 }
 
-void draw_polygon_filled(void *d, float *x, float *y, int num_points);
+void draw_polygon_filled(void *dp, float *x, float *y, int num_points) {
+	x_draw_t *d = (x_draw_t *)dp;
 	static XPoint points[MAX_POLYGON_POINTS];
 	assert(num_points <= MAX_POLYGON_POINTS);
 	int i;
@@ -141,7 +157,8 @@ void draw_polygon_filled(void *d, float *x, float *y, int num_points);
 	XFillPolygon(d->xdisp, d->xwin, d->gc, points, num_points, Nonconvex, CoordModeOrigin);
 }
 
-void draw_get_text_dims(void *d, char *text, float font_size, float *width_out, float *height_out) {
+void draw_get_text_dims(void *dp, char *text, float font_size, float *width_out, float *height_out) {
+	x_draw_t *d = (x_draw_t *)dp;
 	int direction;
 	int font_ascent;
 	int font_descent;
@@ -155,19 +172,22 @@ void draw_get_text_dims(void *d, char *text, float font_size, float *width_out, 
 	*height_out = (float)(overall.ascent + overall.descent);
 }
 
-float draw_get_text_width(void *d, char *text, float font_size) {
+float draw_get_text_width(void *dp, char *text, float font_size) {
+	x_draw_t *d = (x_draw_t *)dp;
 	float w,h;
 	draw_get_text_dims(d, text, font_size, &w, &h);
 	return w;
 }
 
-float draw_get_text_height(void *d, char *text, float font_size) {
+float draw_get_text_height(void *dp, char *text, float font_size) {
+	x_draw_t *d = (x_draw_t *)dp;
 	float w,h;
 	draw_get_text_dims(d, text, font_size, &w, &h);
 	return h;
 }
 
-void draw_text(void *d, char *text, float font_size, float x, float y, int anchor) {
+void draw_text(void *dp, char *text, float font_size, float x, float y, int anchor) {
+	x_draw_t *d = (x_draw_t *)dp;
 }
 
 static uint8_t color_float_to_u8(float f) {
@@ -179,7 +199,8 @@ static uint8_t color_float_to_u8(float f) {
 	return out;
 }
 
-void draw_set_color(void *d, float r, float g, float b) {
+void draw_set_color(void *dp, float r, float g, float b) {
+	x_draw_t *d = (x_draw_t *)dp;
 	uint8_t red   = color_float_to_u8(r);
 	uint8_t green = color_float_to_u8(g);
 	uint8_t blue  = color_float_to_u8(b);
@@ -190,7 +211,8 @@ void draw_set_color(void *d, float r, float g, float b) {
 	}
 }
 
-void draw_set_line_width(void *d, float w) {
+void draw_set_line_width(void *dp, float w) {
+	x_draw_t *d = (x_draw_t *)dp;
 	int width = w;
 	line_attribs_t *la = &(d->line_attribs);
 	if(width != la->width) {
@@ -199,12 +221,3 @@ void draw_set_line_width(void *d, float w) {
 	}
 }
 
-void draw_start(void *dp) {
-	x_draw_t *d = (x_draw_t *)dp;
-	if(d->xdisp == NULL) {
-		d->xdisp = gdk_x11_drawable_get_xdisplay(d->widget->window);
-		d->xwin =gdk_x11_drawable_get_xid(d->widget->window);	
-	}
-
-	d->gc = DefaultGC(d->xdisp, DefaultScreen(d->xdisp));
-}
