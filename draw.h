@@ -4,6 +4,9 @@
 
 typedef void *draw_ptr;
 
+draw_ptr draw_create(void *canvas);
+draw_destroy(draw_ptr dp);
+
 void draw_start(draw_ptr); 
 void draw_finish(draw_ptr); 
 
