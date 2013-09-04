@@ -175,12 +175,12 @@ void draw_rectangle_outline(void *dp, float x1, float y1, float x2, float y2) {
 
 void draw_circle_outline(void *dp, float x_c, float y_c, float radius) {
 	x_draw_t *d = (x_draw_t *)dp;
-	XDrawArc(d->xdisp, d->xwin, d->gc, x_c, y_c, 2*radius, 2*radius, 0, 23040);
+	XDrawArc(d->xdisp, d->xwin, d->gc, x_c - radius, y_c - radius, 2*radius, 2*radius, 0, 23040);
 }
 
 void draw_circle_filled(void *dp, float x_c, float y_c, float radius) {
 	x_draw_t *d = (x_draw_t *)dp;
-	XFillArc(d->xdisp, d->xwin, d->gc, x_c, y_c, 2*radius, 2*radius, 0, 23040);
+	XFillArc(d->xdisp, d->xwin, d->gc, x_c - radius, y_c - radius, 2*radius, 2*radius, 0, 23040);
 }
 
 #define MAX_POLYGON_POINTS 2000

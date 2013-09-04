@@ -1169,6 +1169,7 @@ void print_body_info(body_t *body) {
 
 #define X_USER_TO_PX(x) (x_m * x + x_b)
 #define Y_USER_TO_PX(y) (y_m * y + y_b)
+#define L_USER_TO_PX(l) fabs(x_m * l)
 
 gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_ptr dp = app_data.gui.drawer;
@@ -1186,20 +1187,32 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	float ymin = -10.0;
 	float ymax = +10.0;
 
-	// these are used to convert from user coordinates to pixel coordinates
+	/* These are used to convert from user coordinates to pixel coordinates
+	*  Specifically: 
+	*    x_px = x_m * x_user + x_b
+	*    y_px = y_m * y_user + y_b
+	*/
 	float x_m, x_b;
 	float y_m, y_b;
-
 	x_m = width/(xmax-xmin);
-	x_b = -x_m * xmin;
 	y_m = height/(ymin-ymax);
-	y_b = -y_m * ymax;
+	if(fabs(x_m) < fabs(y_m)) {
+		y_m = -x_m;
+		x_b = -x_m * xmin;
+		y_b = height/2.0 - y_m * (ymin+ymax)/2.0;
+	}
+	else {
+		x_m = -y_m;
+		y_b = -y_m * ymax;
+		x_b = width/2.0 - x_m * (xmin+xmax)/2.0;
+	}
 	
 	// now draw the ground coordinate system
 	draw_set_color(dp, 0.5,0.5,0.5);
 	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymin), X_USER_TO_PX(0), Y_USER_TO_PX(0.8*ymax));
 	draw_line(dp, X_USER_TO_PX(0.8*xmin), Y_USER_TO_PX(0), X_USER_TO_PX(0.8*xmax), Y_USER_TO_PX(0));
 	
+	draw_circle_filled(dp, X_USER_TO_PX(2), Y_USER_TO_PX(2), L_USER_TO_PX(1));
 
 	draw_line(dp, 10, 10, 50, 50);
 
@@ -1275,7 +1288,7 @@ void init_gui(void) {
 	gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, 0.05);
 
   app_data.gui.canvas = gtk_drawing_area_new();
-  gtk_widget_set_size_request(app_data.gui.canvas, 700,400);
+  gtk_widget_set_size_request(app_data.gui.canvas, 500,400);
   gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.canvas, TRUE, TRUE, 0);
   g_signal_connect(app_data.gui.canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
 
