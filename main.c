@@ -1167,9 +1167,9 @@ void print_body_info(body_t *body) {
 		body->id, body->x, body->y, body->theta);
 }
 
-#define X_USER_TO_PX(x) (x_m * x + x_b)
-#define Y_USER_TO_PX(y) (y_m * y + y_b)
-#define L_USER_TO_PX(l) fabs(x_m * l)
+#define X_USER_TO_PX(x) (x_m * (x) + x_b)
+#define Y_USER_TO_PX(y) (y_m * (y) + y_b)
+#define L_USER_TO_PX(l) fabs(x_m * (l))
 
 gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_ptr dp = app_data.gui.drawer;
@@ -1220,15 +1220,25 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
 		switch(body->type) {
-			case BODY_TYPE_BALL:
+			case BODY_TYPE_BALL: {
 				draw_set_color(dp, 1,0,0);
+				float r = ((ball_t *)body)->radius;
 				draw_circle_filled (
 					dp, 
 					X_USER_TO_PX(body->x), 
 					Y_USER_TO_PX(body->y), 
-					L_USER_TO_PX( ((ball_t *)body)->radius )
+					L_USER_TO_PX(r)
+				);
+				draw_set_color(dp, 0,0,0);
+				draw_line (
+					dp,
+					X_USER_TO_PX(body->x),
+					Y_USER_TO_PX(body->y),
+					X_USER_TO_PX(body->x + r * cos(body->theta) ),
+					Y_USER_TO_PX(body->y + r * sin(body->theta) )
 				);
 				break;
+			}
 			case BODY_TYPE_BLOCK:
 				break;
 			case BODY_TYPE_CUSTOM:
