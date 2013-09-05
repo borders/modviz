@@ -218,6 +218,7 @@ void app_data_init(app_data_t *d) {
 	d->time = 0.0;
 	d->explicit_time = false;
 	d->time_map_index = -1;
+	d->dt = 1.0;
 	d->paused = false;
 }
 

@@ -45,7 +45,7 @@
 	<ground type="hash" id="-5" x1="0" y1="0" x2="1" y2="0" />
 
 	<input_format>
-		<entry column="1" type="time" />
+		<!--<entry column="1" type="time" />-->
 		<entry column="2" type="body" id="1" field="x" />
 		<entry column="3" type="body" id="1" field="y" />
 		<entry column="4" type="body" id="4" field="theta" />
