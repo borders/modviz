@@ -186,6 +186,11 @@ typedef struct _app_data_t {
 	bool paused;
 	
 	double time;
+	bool explicit_time;
+	int time_map_index;
+	double t_min;
+	double t_max;
+	double dt;
 
 	gui_t gui;
 
@@ -211,6 +216,8 @@ void app_data_init(app_data_t *d) {
 	d->bytes_per_frame = 0;
 
 	d->time = 0.0;
+	d->explicit_time = false;
+	d->time_map_index = -1;
 	d->paused = false;
 }
 
@@ -774,6 +781,12 @@ int parse_input_format_xml(xmlNode *xml) {
 					map->dest = &app_data.time;
 					map->data_type = DATA_TYPE_DOUBLE;
 					app_data.bytes_per_frame += sizeof(double);
+					if(app_data.explicit_time) {
+						ERROR("Only 1 \"time\" type of input map is allowed!\n");
+						exit(-1);
+					}
+					app_data.explicit_time = true;
+					app_data.time_map_index = app_data.num_input_maps;
 					break;
 				case INPUT_TYPE_BODY: {
 					int id;
@@ -1321,6 +1334,12 @@ gboolean update_func(gpointer data) {
 	// request a redraw of the canvas, which will redraw everything
   gtk_widget_queue_draw(app_data.gui.canvas);
 
+	// set the slider value
+	if(!app_data.explicit_time) {
+		app_data.time = app_data.dt * app_data.active_frame_index;
+	}
+	gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, app_data.time);
+
 	// advance frame counter
 	// If we get to the end (last frame), start over at the beginning
 	app_data.active_frame_index++;
@@ -1359,7 +1378,27 @@ void init_gui(void) {
   gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
   g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	app_data.gui.dt_scale = gtk_hscale_new_with_range(0.0, 5.0, 0.05);
+	app_data.gui.dt_scale = 
+		gtk_hscale_new_with_range(
+			app_data.t_min, 
+			app_data.t_max, 
+			(app_data.explicit_time ? 0.05 : app_data.dt) 
+		);
+	char str[20];
+	snprintf(str, sizeof(str), "%g", app_data.t_min);
+	gtk_scale_add_mark(
+		(GtkScale *)app_data.gui.dt_scale,
+		app_data.t_min,
+		GTK_POS_BOTTOM,
+		str
+	);
+	snprintf(str, sizeof(str), "%g", app_data.t_max);
+	gtk_scale_add_mark(
+		(GtkScale *)app_data.gui.dt_scale,
+		app_data.t_max,
+		GTK_POS_BOTTOM,
+		str
+	);
 	gtk_scale_set_digits((GtkScale *)app_data.gui.dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.dt_scale, FALSE, FALSE, 0);
 
@@ -1398,15 +1437,13 @@ int main(int argc, char *argv[]) {
 	xmlNodePtr root;
 	if(load_config(argv[1], &doc)) {
 		printf("Error loading or valdiating XML config file!\n");
+		exit(-1);
 	}
-
 	root = xmlDocGetRootElement(doc);
 	//print_element_names(root, 0 );
-	//printf("-------\n\n");
 	//print_all_nodes(root, 0);
-	//printf("-------\n\n");
-
 	parse_config_xml(root);
+	xmlFreeDoc(doc);
 
 	char *infile = "-";
 	FILE *fp;
@@ -1446,9 +1483,24 @@ int main(int argc, char *argv[]) {
 						ERROR("Error parsing double from field!!\n");
 						exit(-1);
 					}
-					printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
+					//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
 					*((double *)frame_pos) = d;
 					frame_pos += sizeof(double);
+
+					// ensure that timestamp is monotonic, and keep track of min/max timestamps
+					if(i == app_data.time_map_index) {
+						if(app_data.num_frames == 0) { // first frame
+							app_data.t_min = d;
+							app_data.t_max = d;
+						}
+						else if(d < app_data.t_max) {
+							ERROR("Non-monotonic timestamp detected!!!\n");
+							exit(-1);
+						}
+						else {
+							app_data.t_max = d;
+						}
+					}
 					break;
 				}
 				default:
@@ -1470,6 +1522,12 @@ int main(int argc, char *argv[]) {
 	if(!feof(fp)) {
 		ERROR("Error while reading datafile!!\n");
 		exit(-1);
+	}
+
+	// set min/max time for implicit time case
+	if(!app_data.explicit_time) {
+		app_data.t_min = 0.0;
+		app_data.t_max = (app_data.num_frames - 1) * app_data.dt;
 	}
 
 	printf("Got %d frames\n", app_data.num_frames);
