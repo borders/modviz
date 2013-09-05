@@ -143,8 +143,9 @@ typedef enum {
 
 typedef struct _input_map_t {
 	int field_num; // 1-based
-	void *dest;
+	void *dest; // where to write the value (a field of a body_t)
 	data_type_enum data_type;
+	int frame_byte_offset;
 } input_map_t;
 
 typedef char *frame_ptr_t;
@@ -1315,7 +1316,7 @@ gboolean update_func(gpointer data) {
 
 	//printf("frame #%05d:\n", app_data.active_frame_index);
 	int j;
-	frame_ptr_t p = app_data.frames[app_data.active_frame_index];
+	frame_ptr_t pframe = app_data.frames[app_data.active_frame_index];
 
 	/* loop over all input maps, stuffing the data
 	 * in the frame into the proper destination location */
@@ -1323,8 +1324,7 @@ gboolean update_func(gpointer data) {
 		input_map_t *map = app_data.input_maps[j];
 		switch(map->data_type) {
 			case DATA_TYPE_DOUBLE:
-				*((double *)(map->dest)) = *((double *)p);
-				p += sizeof(double);
+				*((double *)(map->dest)) = *((double *)(&pframe[map->frame_byte_offset]));
 				break;
 			default:
 				ERROR("Unhandled data type!!!\n");
@@ -1469,7 +1469,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
-		char *frame_pos = pframe;
+		int offset = 0;
 		for(i=0; i < app_data.num_input_maps; i++) {
 			input_map_t *map = app_data.input_maps[i];
 			if(map->field_num > field_count) {
@@ -1485,8 +1485,9 @@ int main(int argc, char *argv[]) {
 						exit(-1);
 					}
 					//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
-					*((double *)frame_pos) = d;
-					frame_pos += sizeof(double);
+					*((double *)(&pframe[offset])) = d;
+					map->frame_byte_offset = offset;
+					offset += sizeof(double);
 
 					// ensure that timestamp is monotonic, and keep track of min/max timestamps
 					if(i == app_data.time_map_index) {
