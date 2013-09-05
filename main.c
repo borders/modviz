@@ -162,7 +162,7 @@ frame_ptr_t frame_alloc(int size) {
 
 typedef struct {
 	GtkWidget *canvas;
-	GtkWidget *dt_scale;
+	GtkWidget *slider;
 	draw_ptr drawer;
 } gui_t;
 
@@ -1308,13 +1308,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	return TRUE;
 }
 
-gboolean update_func(gpointer data) {
-
-	if(app_data.paused) {
-		return TRUE;
-	}
-
-	//printf("frame #%05d:\n", app_data.active_frame_index);
+static void update_bodies(void) {
 	int j;
 	frame_ptr_t pframe = app_data.frames[app_data.active_frame_index];
 
@@ -1332,14 +1326,25 @@ gboolean update_func(gpointer data) {
 		}
 	}
 
-	// request a redraw of the canvas, which will redraw everything
-  gtk_widget_queue_draw(app_data.gui.canvas);
+}
+
+gboolean update_func(gpointer data) {
+
+	if(app_data.paused) {
+		return TRUE;
+	}
+
+	//printf("frame #%05d:\n", app_data.active_frame_index);
+	update_bodies();
 
 	// set the slider value
 	if(!app_data.explicit_time) {
 		app_data.time = app_data.dt * app_data.active_frame_index;
 	}
-	gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, app_data.time);
+	gtk_range_set_value((GtkRange *)app_data.gui.slider, app_data.time);
+
+	// request a redraw of the canvas, which will redraw everything
+  gtk_widget_queue_draw(app_data.gui.canvas);
 
 	// advance frame counter
 	// If we get to the end (last frame), start over at the beginning
@@ -1355,10 +1360,10 @@ gboolean update_func(gpointer data) {
 void button_activate(GtkButton *b, gpointer data) {
 	app_data.paused = !app_data.paused;
   if(app_data.paused) {
-    gtk_button_set_label(b, "Play");
+    gtk_button_set_label(b, ">");
   }
   else {
-    gtk_button_set_label(b, "Pause");
+    gtk_button_set_label(b, "||");
   }
   return;
 }
@@ -1385,10 +1390,17 @@ gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, 
 	// Otherwise (we must be paused), set the active frame index based on slider position
 	if(app_data.explicit_time) {
 		int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+		if (frame_index < 0)
+			frame_index = 0;
+		else if( frame_index >= app_data.num_frames)
+			frame_index = app_data.num_frames - 1;
 		double t = get_time_from_frame(app_data.frames[frame_index]);
-		double delta = fabs(t - value);
+		double delta= fabs(t - value);
 		if(t < value) {
 			while(1) {
+				if( (frame_index+1) >= app_data.num_frames) {
+					break;
+				}
 				double t_next = get_time_from_frame(app_data.frames[frame_index + 1]);
 				double delta_next = fabs(t_next - value);
 				if(delta_next > delta) {
@@ -1401,6 +1413,9 @@ gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, 
 		}
 		else if(t > value) {
 			while(t > value) {
+				if(frame_index <= 0) {
+					break;
+				}
 				double t_next = get_time_from_frame(app_data.frames[frame_index - 1]);
 				double delta_next = fabs(t_next - value);
 				if(delta_next > delta) {
@@ -1412,21 +1427,27 @@ gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, 
 			}
 		}
 		app_data.active_frame_index = frame_index;
-		gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, t);
-		return TRUE;
+		gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
 	}
 	else {
-		app_data.active_frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
-		gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, app_data.active_frame_index * app_data.dt);
-		return TRUE;
+		int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+		if (frame_index < 0)
+			frame_index = 0;
+		else if( frame_index >= app_data.num_frames)
+			frame_index = app_data.num_frames - 1;
+		app_data.active_frame_index = frame_index;
+		gtk_range_set_value((GtkRange *)app_data.gui.slider, app_data.active_frame_index * app_data.dt);
 	}
-
+	update_bodies();
+	gtk_widget_queue_draw(app_data.gui.canvas);
+	return TRUE;
 }
 
 
 void init_gui(void) {
 	GtkWidget *window;
 	GtkWidget *v_box;
+	GtkWidget *vcr_hbox;
 	GtkWidget *button;
 
 	gtk_init (NULL, NULL);
@@ -1436,37 +1457,40 @@ void init_gui(void) {
 	v_box = gtk_vbox_new(FALSE, 10);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 
-	button = gtk_button_new_with_label("Pause");
-	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
+	vcr_hbox = gtk_hbox_new(FALSE, 10);
+
+	button = gtk_button_new_with_label("||");
+	gtk_box_pack_start (GTK_BOX(v_box), vcr_hbox, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX(vcr_hbox), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	app_data.gui.dt_scale = 
+	app_data.gui.slider = 
 		gtk_hscale_new_with_range(
 			app_data.t_min, 
 			app_data.t_max, 
 			(app_data.explicit_time ? 0.05 : app_data.dt) 
 		);
-	g_signal_connect(app_data.gui.dt_scale, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
-	g_signal_connect(app_data.gui.dt_scale, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
+	//g_signal_connect(app_data.gui.slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
+	g_signal_connect(app_data.gui.slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
 	char str[20];
 	snprintf(str, sizeof(str), "%g", app_data.t_min);
 	gtk_scale_add_mark(
-		(GtkScale *)app_data.gui.dt_scale,
+		(GtkScale *)app_data.gui.slider,
 		app_data.t_min,
 		GTK_POS_BOTTOM,
 		str
 	);
 	snprintf(str, sizeof(str), "%g", app_data.t_max);
 	gtk_scale_add_mark(
-		(GtkScale *)app_data.gui.dt_scale,
+		(GtkScale *)app_data.gui.slider,
 		app_data.t_max,
 		GTK_POS_BOTTOM,
 		str
 	);
-	gtk_scale_set_digits((GtkScale *)app_data.gui.dt_scale, 5);
-	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.dt_scale, FALSE, FALSE, 0);
+	gtk_scale_set_digits((GtkScale *)app_data.gui.slider, 5);
+	gtk_box_pack_start (GTK_BOX(vcr_hbox), app_data.gui.slider, TRUE, TRUE, 0);
 
-	gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, 0.05);
+	gtk_range_set_value((GtkRange *)app_data.gui.slider, 0.05);
 
   app_data.gui.canvas = gtk_drawing_area_new();
   gtk_widget_set_size_request(app_data.gui.canvas, 500,400);
