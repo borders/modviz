@@ -183,6 +183,8 @@ typedef struct _app_data_t {
 	int frames_capacity;
 	int bytes_per_frame;
 
+	bool paused;
+	
 	double time;
 
 	gui_t gui;
@@ -209,6 +211,7 @@ void app_data_init(app_data_t *d) {
 	d->bytes_per_frame = 0;
 
 	d->time = 0.0;
+	d->paused = false;
 }
 
 int body_init(body_t *self, body_type_enum type) {
@@ -1291,9 +1294,12 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 }
 
 gboolean update_func(gpointer data) {
-	//printf("running update_func()\n");
 
-	printf("frame #%05d:\n", app_data.active_frame_index);
+	if(app_data.paused) {
+		return TRUE;
+	}
+
+	//printf("frame #%05d:\n", app_data.active_frame_index);
 	int j;
 	frame_ptr_t p = app_data.frames[app_data.active_frame_index];
 
@@ -1316,19 +1322,31 @@ gboolean update_func(gpointer data) {
   gtk_widget_queue_draw(app_data.gui.canvas);
 
 	// advance frame counter
+	// If we get to the end (last frame), start over at the beginning
 	app_data.active_frame_index++;
 	if(app_data.active_frame_index >= app_data.num_frames) {
-		app_data.active_frame_index = app_data.num_frames - 1;
+		//app_data.active_frame_index = app_data.num_frames - 1;
+		app_data.active_frame_index = 0;
 	}
 
 	return TRUE;
+}
+
+void button_activate(GtkButton *b, gpointer data) {
+	app_data.paused = !app_data.paused;
+  if(app_data.paused) {
+    gtk_button_set_label(b, "Play");
+  }
+  else {
+    gtk_button_set_label(b, "Pause");
+  }
+  return;
 }
 
 void init_gui(void) {
   GtkWidget *window;
   GtkWidget *v_box;
   GtkWidget *button;
-  GtkWidget *save_button;
 
   gtk_init (NULL, NULL);
 
@@ -1339,13 +1357,9 @@ void init_gui(void) {
 
   button = gtk_button_new_with_label("Pause");
   gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
-  //g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
+  g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-  save_button = gtk_button_new_with_label("Capture Plot to File (PNG)");
-  gtk_box_pack_start (GTK_BOX(v_box), save_button, FALSE, FALSE, 0);
-  //g_signal_connect(save_button, "clicked", G_CALLBACK(save_button_activate), NULL);
-
-	app_data.gui.dt_scale = gtk_hscale_new_with_range(0.00025, 0.05, 0.00025);
+	app_data.gui.dt_scale = gtk_hscale_new_with_range(0.0, 5.0, 0.05);
 	gtk_scale_set_digits((GtkScale *)app_data.gui.dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.dt_scale, FALSE, FALSE, 0);
 
@@ -1362,7 +1376,7 @@ void init_gui(void) {
 
   gtk_widget_show_all (window);
 
-	g_timeout_add(1000, update_func, NULL);
+	g_timeout_add(200, update_func, NULL);
 }
 
 #define MAX_FIELDS 30
@@ -1407,7 +1421,6 @@ int main(int argc, char *argv[]) {
 	else {
 		fp = stdin;
 	}
-	//int fd = open_file_nonblocking(infile);
 	char line[2000];
 	while(fgets(line, sizeof(line), fp) != NULL) {
 		int i;
@@ -1416,13 +1429,6 @@ int main(int argc, char *argv[]) {
 		if(field_count < 0) {
 			continue;
 		}
-
-		#if 0
-		printf("Got %d fields:\n", ret);
-		for(i=0; i < field_count; i++) {
-			printf("  %s\n", fields[i]);
-		}
-		#endif
 
 		frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
 		char *frame_pos = pframe;
