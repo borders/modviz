@@ -1363,21 +1363,82 @@ void button_activate(GtkButton *b, gpointer data) {
   return;
 }
 
+void slider_changed_cb(GtkRange *range, gpointer  user_data) {
+	//printf("slider changed!\n");
+}
+
+static double get_time_from_frame(frame_ptr_t pframe) {
+	assert(app_data.explicit_time);
+	input_map_t *map = app_data.input_maps[app_data.time_map_index];
+	double t = *((double *)(&pframe[map->frame_byte_offset]));
+	return t;
+}
+
+gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, gpointer user_data) {
+	//printf("slider changed 2!\n");
+
+	// if NOT paused, prevent user from moving the slider
+	if(!app_data.paused) {
+		return TRUE;
+	}
+
+	// Otherwise (we must be paused), set the active frame index based on slider position
+	if(app_data.explicit_time) {
+		int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+		double t = get_time_from_frame(app_data.frames[frame_index]);
+		double delta = fabs(t - value);
+		if(t < value) {
+			while(1) {
+				double t_next = get_time_from_frame(app_data.frames[frame_index + 1]);
+				double delta_next = fabs(t_next - value);
+				if(delta_next > delta) {
+					break;
+				}
+				t = t_next;
+				delta = delta_next;
+				frame_index++;
+			}
+		}
+		else if(t > value) {
+			while(t > value) {
+				double t_next = get_time_from_frame(app_data.frames[frame_index - 1]);
+				double delta_next = fabs(t_next - value);
+				if(delta_next > delta) {
+					break;
+				}
+				t = t_next;
+				delta = delta_next;
+				frame_index--;
+			}
+		}
+		app_data.active_frame_index = frame_index;
+		gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, t);
+		return TRUE;
+	}
+	else {
+		app_data.active_frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+		gtk_range_set_value((GtkRange *)app_data.gui.dt_scale, app_data.active_frame_index * app_data.dt);
+		return TRUE;
+	}
+
+}
+
+
 void init_gui(void) {
-  GtkWidget *window;
-  GtkWidget *v_box;
-  GtkWidget *button;
+	GtkWidget *window;
+	GtkWidget *v_box;
+	GtkWidget *button;
 
-  gtk_init (NULL, NULL);
+	gtk_init (NULL, NULL);
 
-  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
-  v_box = gtk_vbox_new(FALSE, 10);
-  gtk_container_add (GTK_CONTAINER (window), v_box);
+	v_box = gtk_vbox_new(FALSE, 10);
+	gtk_container_add (GTK_CONTAINER (window), v_box);
 
-  button = gtk_button_new_with_label("Pause");
-  gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
-  g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
+	button = gtk_button_new_with_label("Pause");
+	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
+	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
 	app_data.gui.dt_scale = 
 		gtk_hscale_new_with_range(
@@ -1385,6 +1446,8 @@ void init_gui(void) {
 			app_data.t_max, 
 			(app_data.explicit_time ? 0.05 : app_data.dt) 
 		);
+	g_signal_connect(app_data.gui.dt_scale, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
+	g_signal_connect(app_data.gui.dt_scale, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
 	char str[20];
 	snprintf(str, sizeof(str), "%g", app_data.t_min);
 	gtk_scale_add_mark(
