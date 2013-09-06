@@ -1216,10 +1216,10 @@ static void body_transform_point_shape2ground(
 	sin_2 = sin(arg_2);
 	cos_2 = cos(arg_2);
 
-	*x_g = body->x + body->x_offset * cos_1 - body->y_offset * sin_1 
-	       + x_s * cos_2 - y_s * sin_2;
-	*y_g = body->y + body->y_offset * cos_1 + body->x_offset * sin_1 
-	       + y_s * cos_2 + x_s * sin_2;
+	*x_g = body->x + (body->x_offset * cos_1) - (body->y_offset * sin_1)
+	       + (x_s * cos_2) - (y_s * sin_2);
+	*y_g = body->y + (body->y_offset * cos_1) + (body->x_offset * sin_1)
+	       + (y_s * cos_2) + (x_s * sin_2);
 }
 
 static void body_transform_points_shape2ground(
@@ -1238,10 +1238,13 @@ static void body_transform_points_shape2ground(
 
 	int i;
 	for(i=0; i<num_points; i++) {
-		x_g[i] = body->x + body->x_offset * cos_1 - body->y_offset * sin_1 
-				 + x_s[i] * cos_2 - y_s[i] * sin_2;
-		y_g[i] = body->y + body->y_offset * cos_1 + body->x_offset * sin_1 
-				 + y_s[i] * cos_2 + x_s[i] * sin_2;
+		float tmp_x, tmp_y;
+		tmp_x = body->x + (body->x_offset * cos_1) - (body->y_offset * sin_1)
+				 + (x_s[i] * cos_2) - (y_s[i] * sin_2);
+		tmp_y = body->y + (body->y_offset * cos_1) + (body->x_offset * sin_1) 
+				 + (y_s[i] * cos_2) + (x_s[i] * sin_2);
+		x_g[i] = tmp_x;
+		y_g[i] = tmp_y;
 	}
 }
 	
