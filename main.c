@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include <gtk/gtk.h>
 
@@ -53,12 +54,16 @@ typedef enum {
 } body_type_enum;
 
 typedef struct {
-	double red;
-	double green;
-	double blue;
+	float red;
+	float green;
+	float blue;
 } color_t;
 
 static color_t COLOR_BLACK = {0.0, 0.0, 0.0};
+static color_t COLOR_WHITE = {1.0, 1.0, 1.0};
+static color_t COLOR_RED   = {1.0, 0.0, 0.0};
+static color_t COLOR_GREEN = {0.0, 1.0, 0.0};
+static color_t COLOR_BLUE  = {0.0, 0.0, 1.0};
 
 typedef struct {
 	body_type_enum type;
@@ -543,6 +548,55 @@ int parse_int(char *str, int *val) {
 	return 0;
 }
 
+int parse_color(char *str, color_t *val) {
+	color_t c;
+	if(strlen(str) < 3) {
+		return -1;
+	}
+	if(str[0] == '#') { // RGB color string
+		if(strlen(str) < 7) {
+			ERROR("Too few characters in RGB color string!\n");
+			return -1;
+		}
+		int i;
+		for(i=1; i<=6; i++) {
+			if( !isxdigit(str[i]) ) {
+				ERROR("ERROR: All characters following '#' must be hex digits\n");
+				return -1;
+			}
+		}
+		char hex_str[3];
+		int val[3];
+		for(i=0; i<3; i++) {
+			hex_str[0] = str[1 + 2*i];
+			hex_str[1] = str[1 + 2*i + 1];
+			hex_str[2] = '\0';
+			val[i] = strtoul(hex_str, NULL, 16);
+		}
+		c.red   = val[0] / 255.0;
+		c.green = val[1] / 255.0;
+		c.blue  = val[2] / 255.0;
+	}
+	else {
+		if(!strcmp(str, "red")) {
+			c = COLOR_RED;
+		} else if(!strcmp(str, "green")) {
+			c = COLOR_GREEN;
+		} else if(!strcmp(str, "blue")) {
+			c = COLOR_BLUE;
+		} else if(!strcmp(str, "black")) {
+			c = COLOR_BLACK;
+		} else if(!strcmp(str, "white")) {
+			c = COLOR_WHITE;
+		} else {
+			ERROR("WARNING: couldn't match specified color (%s). Using BLACK instead...\n", str);
+			c = COLOR_BLACK;
+		}
+	}
+	*val = c;
+	return 0;
+}
+
 int parse_double(char *str, double *val) {
 	double d;
 	char *end;
@@ -695,6 +749,33 @@ int parse_attrib_to_string(xmlNode *xml, char **dest, char *attrib_name, bool re
 	*dest = val_str;
 	/* note: I'm intentionally NOT freeing "val_str" */
 	DEBUG("  parsed the \"%s\" attribute into a string (\"%s\")\n", attrib_name, *dest);
+	return 0;
+}
+
+int parse_attrib_to_color(xmlNode *xml, color_t *dest, char *attrib_name, bool required, color_t *dflt) {
+	char *val_str = xmlGetProp(xml, attrib_name);
+	if(val_str == NULL) {
+		if(required) {
+			ERROR("Error: No \"%s\" attribute specified (it's required!)\n", attrib_name);
+			return -1;
+		}
+		else {
+			*dest = *dflt;
+			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%g,%g,%g) instead...\n", 
+				attrib_name, dflt->red, dflt->green, dflt->blue);
+			return 0;
+		}
+	}
+	color_t c;
+	if(parse_color(val_str, &c)) {
+		ERROR("Error: The \"%s\" attribute must be a color string\n", attrib_name);
+		xmlFree(val_str);
+		return -1;
+	}
+	*dest = c;
+	xmlFree(val_str);
+	DEBUG("  parsed the \"%s\" attribute into a color (%g,%g,%g)\n", 
+		attrib_name, c.red, c.green, c.blue);
 	return 0;
 }
 
@@ -941,7 +1022,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	sprintf(name, "body_%03d", body_auto_id());
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
 	error = error || parse_attrib_to_bool(xml, &body->show_shape_frame, "show_shape_frame", false, false);
-	error = error || parse_attrib_to_bool(xml, &body->show_body_frame, "show_body_frame", false, true);
+	error = error || parse_attrib_to_bool(xml, &body->show_body_frame, "show_body_frame", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->filled, "filled", false, true);
@@ -952,6 +1033,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	error = error || parse_attrib_to_double(xml, &(body->y_offset), "y_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->theta_offset), "theta_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->phi), "phi", false , 0.);
+	error = error || parse_attrib_to_color(xml, &(body->color), "color", false, &COLOR_BLACK);
 	if(error) {
 		ERROR("Error parsing body XML\n");
 		return -1;
@@ -1373,13 +1455,16 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		float cos_ = cos(body->theta + body->theta_offset);
 		switch(body->type) {
 		case BODY_TYPE_BALL: {
-			draw_set_color(dp, 1,0,0);
+			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float r = ((ball_t *)body)->radius;
 			float x_c, y_c;
 			body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
 			float x_r, y_r;
 			body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
-			draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
+			if(body->filled) 
+				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
+			else 
+				draw_circle_outline(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
 			if( ((ball_t *)body)->show_spoke) {
 				draw_set_color(dp, 1,1,1);
 				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
@@ -1388,9 +1473,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		}
 		case BODY_TYPE_BLOCK: {
 			block_t *block = (block_t *)body;
-			draw_set_color(dp, 0,0,1);
-			//float x[4] = {block->x1, block->x2, block->x2, block->x1};
-			//float y[4] = {block->y1, block->y1, block->y2, block->y2};
+			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float w_2 = block->width/2.0;
 			float h_2 = block->height/2.0;
 			float x[4] = {-w_2, +w_2, +w_2, -w_2};
@@ -1401,12 +1484,15 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				x[i] = X_USER_TO_PX(x[i]);
 				y[i] = Y_USER_TO_PX(y[i]);
 			}
-			draw_polygon_filled(dp, x, y, 4);
+			if(body->filled) 
+				draw_polygon_filled(dp, x, y, 4);
+			else
+				draw_polygon_outline(dp, x, y, 4);
 			break;
 		}
 		case BODY_TYPE_CUSTOM: {
 			custom_t *cust = (custom_t *)body;
-			draw_set_color(dp, 0,1,0);
+			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float *x = malloc(cust->node_count * sizeof(float));
 			float *y = malloc(cust->node_count * sizeof(float));
 			assert(x && y);
@@ -1417,7 +1503,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				x[i] = X_USER_TO_PX(x[i]);
 				y[i] = Y_USER_TO_PX(y[i]);
 			}
-			draw_polygon_filled(dp, x, y, cust->node_count);
+			if(body->filled) 
+				draw_polygon_filled(dp, x, y, cust->node_count);
+			else
+				draw_polygon_outline(dp, x, y, cust->node_count);
 
 			free(x);
 			free(y);
@@ -1431,6 +1520,18 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
 			float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
 			body_transform_points_body2ground(body, 3, x, y, x, y);
+			int i;
+			for(i=0; i<3; i++) {
+				x[i] = X_USER_TO_PX(x[i]);
+				y[i] = Y_USER_TO_PX(y[i]);
+			}
+			draw_set_color(dp, 0,0,0);
+			draw_polygon_outline(dp, x, y, 3);
+		}
+		if(body->show_shape_frame) {
+			float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+			float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+			body_transform_points_shape2ground(body, 3, x, y, x, y);
 			int i;
 			for(i=0; i<3; i++) {
 				x[i] = X_USER_TO_PX(x[i]);

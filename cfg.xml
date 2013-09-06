@@ -10,6 +10,8 @@
 		x_offset="0.0"
 		y_offset="0.0"
 		theta_offset="0.0"
+		filled="false"
+		color="#FF0000"
 	/>
 
 	<ball name="pendulum_ball" id="10" radius="1" x="0" y="0" x_offset="0" y_offset="5.0" theta="0.0" />
@@ -19,7 +21,7 @@
 	</connector>
 
 	<block id="3" name="cart" width="4" height="3" x="0.0" y="0.0" theta="0.0" phi="0.0" />
-	<ball name="cart_wheel_left" id="11" radius="0.75" x="0" y="0" x_offset="-1.4" y_offset="-1.5" theta="0.0" />
+	<ball name="cart_wheel_left" color="green" id="11" radius="0.75" x="0" y="0" x_offset="-1.4" y_offset="-1.5" theta="0.0" />
 	<ball name="cart_wheel_right" id="12" radius="0.75" x="0" y="0" x_offset="1.4" y_offset="-1.5" theta="0.0" />
 
 	<custom id="4" name="crank" x="-6.0" y="-5.0" theta="0.1" >
