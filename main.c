@@ -364,13 +364,32 @@ int connector_init(connector_t *self) {
 	return 0;
 }
 
-int custom_init(custom_t *self) {
+int custom_init(custom_t *self) 
+{
 	body_init((body_t *)self, BODY_TYPE_CUSTOM);
 	self->node_count = 0;
 	self->node_x = NULL;
 	self->node_y = NULL;
 	self->node_owner = false;
 	return 0;
+}
+
+static int body_auto_id(void) 
+{
+	int i;
+	int id;
+	for(id=0; ; id++) {
+		bool used = false;
+		for(i=0; i<app_data.num_bodies; i++) {
+			if(app_data.bodies[i]->id == id) {
+				used = true;
+				break;
+			}
+		}
+		if(!used) {
+			return id;
+		}
+	}
 }
 
 int custom_set_nodes(custom_t *self, int node_count, double *x, double *y, bool copy) {
@@ -912,7 +931,7 @@ int parse_connector_xml(xmlNode *xml, connector_t *connect) {
 int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
-	error = error || parse_attrib_to_int(xml, &body->id, "id", true, -1);
+	error = error || parse_attrib_to_int(xml, &body->id, "id", false, body_auto_id());
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
 	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
