@@ -16,7 +16,8 @@
 	<ball name="small pulley" id="2" radius="0.4" x="-2.3" y="1.6" theta="0.0" />
 -->
 
-	<block id="3" name="small_block" x1="-1.0" y1="-2" x2="+1.0" y2="+2" x="0.0" y="0.0" theta="0.0" />
+	<!--<block id="3" name="small_block" x1="-1.0" y1="-2" x2="+1.0" y2="+2" x="0.0" y="0.0" theta="0.0" />-->
+	<block id="3" name="small_block" width="2.0" height="8.0" x="-7.0" y="0.0" theta="0.0" phi="0.2" />
 
 	<custom id="4" name="crank" x="-6.0" y="-5.0" theta="0.1" >
 		<node x="0.0" y="0.0" />

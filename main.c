@@ -88,10 +88,8 @@ typedef struct {
 
 typedef struct {
 	body_t body;
-	double x1;
-	double x2;
-	double y1;
-	double y2;
+	double width;
+	double height;
 } block_t;
 
 
@@ -298,10 +296,8 @@ block_t *block_alloc(void) {
 
 int block_init(block_t *self) {
 	body_init((body_t *)self, BODY_TYPE_BLOCK);
-	self->x1 = -1.0;
-	self->x2 = +1.0;
-	self->y1 = -1.0;
-	self->y2 = +1.0;
+	self->width = 1.0;
+	self->height = 1.0;
 	return 0;
 }
 
@@ -928,6 +924,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	error = error || parse_attrib_to_double(xml, &(body->x_offset), "x_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->y_offset), "y_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->theta_offset), "theta_offset", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->phi), "phi", false , 0.);
 	if(error) {
 		ERROR("Error parsing body XML\n");
 		return -1;
@@ -951,10 +948,8 @@ int parse_block_xml(xmlNode *xml, block_t *block) {
 	int error = 0;
 
 	error = error || parse_body_xml(xml, (body_t *)block);
-	error = error || parse_attrib_to_double(xml, &(block->x1), "x1", true, 0.);
-	error = error || parse_attrib_to_double(xml, &(block->x2), "x2", true, 0.);
-	error = error || parse_attrib_to_double(xml, &(block->y1), "y1", true, 0.);
-	error = error || parse_attrib_to_double(xml, &(block->y2), "y2", true, 0.);
+	error = error || parse_attrib_to_double(xml, &(block->width), "width", true, 0.);
+	error = error || parse_attrib_to_double(xml, &(block->height), "height", true, 0.);
 	if(error) {
 		ERROR("Error parsing block XML\n");
 		return -1;
@@ -1323,8 +1318,12 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case BODY_TYPE_BLOCK: {
 				block_t *block = (block_t *)body;
 				draw_set_color(dp, 0,0,1);
-				float x[4] = {block->x1, block->x2, block->x2, block->x1};
-				float y[4] = {block->y1, block->y1, block->y2, block->y2};
+				//float x[4] = {block->x1, block->x2, block->x2, block->x1};
+				//float y[4] = {block->y1, block->y1, block->y2, block->y2};
+				float w_2 = block->width/2.0;
+				float h_2 = block->height/2.0;
+				float x[4] = {-w_2, +w_2, +w_2, -w_2};
+				float y[4] = {-h_2, -h_2, +h_2, +h_2};
 				body_transform_points_shape2ground(body, 4, x, y, x, y);
 				int i;
 				for(i=0; i<4; i++) {
