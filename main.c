@@ -1181,6 +1181,14 @@ int split_line_into_fields(char *line, char *fields[], int max_fields) {
 	return field_count;
 }
 
+void print_connector_info(connector_t *connect) {
+	printf("Connector id %-4d: Attach_1=(%d, %g, %g) Attach_2=(%d, %g, %g) \n", 
+		connect->id, 
+		connect->body_1->id, connect->x1, connect->y1,
+		connect->body_2->id, connect->x2, connect->y2
+	);
+}
+
 void print_body_info(body_t *body) {
 	printf("Body id %-4d: (%6g,%6g,%6g)\n", 
 		body->id, body->x, body->y, body->theta);
@@ -1200,6 +1208,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 
 	// first, fill with background color
 	draw_set_color(dp, 1,1,1);
+	draw_set_line_width(dp, 1);
 	draw_rectangle_filled(dp, 0, 0, width, height);
 
 	float xmin = -10.0;
@@ -1300,6 +1309,74 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			}
 			default:
 				ERROR("Unsupported body type!\n");
+				exit(-1);
+		}
+	}
+
+	// draw all the connectors
+	for(i=0; i < app_data.num_connectors; i++) {
+		connector_t *connect = app_data.connectors[i];
+		switch(connect->type) {
+			case CONN_TYPE_SPRING:
+				draw_set_color(dp, 0,0,0);
+				draw_set_line_width(dp, 2);
+				float sin_1 = sin(connect->body_1->theta);
+				float cos_1 = cos(connect->body_1->theta);
+				float sin_2 = sin(connect->body_2->theta);
+				float cos_2 = cos(connect->body_2->theta);
+				float x1, y1, x2, y2;
+				x1 = connect->body_1->x + connect->x1 * cos_1 - connect->y1 * sin_1;
+				y1 = connect->body_1->y + connect->x1 * sin_1 + connect->y1 * cos_1;
+				x2 = connect->body_2->x + connect->x2 * cos_2 - connect->y2 * sin_2;
+				y2 = connect->body_2->y + connect->x2 * sin_2 + connect->y2 * cos_2;
+				float dx, dy;
+				dx = x2 - x1;
+				dy = y2 - y1;
+				float L = sqrt(dx * dx + dy * dy);
+				float h = 0.2 * L;
+				float theta = atan2(dy, dx);
+				float sin_, cos_;
+				sin_ = sin(theta);
+				cos_ = cos(theta);
+				float x[9], y[9];
+				x[0] = 0.0; y[0] = 0.0;
+				x[1] = 0.2*L; y[1] = 0.0;
+
+				x[2] = 0.26*L; y[2] = +h/2.0;
+				x[3] = 0.38*L; y[3] = -h/2.0;
+				x[4] = 0.50*L; y[4] = +h/2.0;
+				x[5] = 0.62*L; y[5] = -h/2.0;
+				x[6] = 0.74*L; y[6] = +h/2.0;
+
+				x[7] = 0.8*L; y[7] = 0.0;
+				x[8] = L; y[8] = 0.0;
+
+				int i;
+				float x_px[9], y_px[9];
+				for(i=0; i<9; i++) {
+					x_px[i] = X_USER_TO_PX(x1 + x[i] * cos_ - y[i] * sin_);
+					y_px[i] = Y_USER_TO_PX(y1 + x[i] * sin_ + y[i] * cos_);
+				}
+				draw_polygon_outline(dp, x_px, y_px, 9);
+				break;
+			case CONN_TYPE_LINE: {
+				draw_set_color(dp, 0,0,0);
+				draw_set_line_width(dp, 2);
+				float sin_1 = sin(connect->body_1->theta);
+				float cos_1 = cos(connect->body_1->theta);
+				float sin_2 = sin(connect->body_2->theta);
+				float cos_2 = cos(connect->body_2->theta);
+				draw_line (
+					dp,
+					X_USER_TO_PX(connect->body_1->x + connect->x1 * cos_1 - connect->y1 * sin_1),
+					Y_USER_TO_PX(connect->body_1->y + connect->x1 * sin_1 + connect->y1 * cos_1),
+					X_USER_TO_PX(connect->body_2->x + connect->x2 * cos_2 - connect->y2 * sin_2),
+					Y_USER_TO_PX(connect->body_2->y + connect->x2 * sin_2 + connect->y2 * cos_2)
+				);
+				break;
+			}
+			default:
+				ERROR("Unsupported connector type!\n");
 				exit(-1);
 		}
 	}
@@ -1532,6 +1609,14 @@ int main(int argc, char *argv[]) {
 	//print_all_nodes(root, 0);
 	parse_config_xml(root);
 	xmlFreeDoc(doc);
+
+	int i;
+	for(i=0; i<app_data.num_bodies; i++) {
+		print_body_info(app_data.bodies[i]);
+	}
+	for(i=0; i<app_data.num_connectors; i++) {
+		print_connector_info(app_data.connectors[i]);
+	}
 
 	char *infile = "-";
 	FILE *fp;

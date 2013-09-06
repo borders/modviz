@@ -34,13 +34,15 @@
 
 	<connector name="spring_1" id="666" type="spring">
 		<attach id="1" x="0.0" y="0.0" />
-		<attach id="3" x="0.0" y="0.0" />
+		<attach id="4" x="3.0" y="0.0" />
 	</connector>
 
+<!--
 	<connector name="spring_2" id="777" type="spring">
 		<attach id="1" x="0.0" y="0.0" />
 		<attach id="3" x="0.0" y="0.0" />
 	</connector>
+-->
 
 	<ground type="hash" id="-5" x1="0" y1="0" x2="1" y2="0" />
 
