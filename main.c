@@ -1329,6 +1329,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				y1 = connect->body_1->y + connect->x1 * sin_1 + connect->y1 * cos_1;
 				x2 = connect->body_2->x + connect->x2 * cos_2 - connect->y2 * sin_2;
 				y2 = connect->body_2->y + connect->x2 * sin_2 + connect->y2 * cos_2;
+
+				// should wrap the stuff below in a function, like:
+				//draw_spring_between_points(x1,y1,x2,y2);
+
 				float dx, dy;
 				dx = x2 - x1;
 				dy = y2 - y1;
