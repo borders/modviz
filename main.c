@@ -74,7 +74,8 @@ typedef struct {
 	char *name; // user-specified name string
 	int id; // user-specified id number
 
-	bool show_cs;
+	bool show_shape_frame;
+	bool show_body_frame;
 	bool show_name;
 	bool show_id;
 	bool filled;
@@ -84,6 +85,8 @@ typedef struct {
 typedef struct {
 	body_t body;
 	double radius;
+
+	bool show_spoke;
 } ball_t;
 
 typedef struct {
@@ -241,7 +244,8 @@ int body_init(body_t *self, body_type_enum type) {
 	self->name = NULL;
 	self->id = -1;
 
-	self->show_cs = false;
+	self->show_shape_frame = false;
+	self->show_body_frame = false;
 	self->show_name = false;
 	self->show_id = false;
 	self->filled = true;
@@ -280,6 +284,7 @@ void ball_dealloc(ball_t *self) {
 int ball_init(ball_t *self) {
 	body_init((body_t *)self, BODY_TYPE_BALL);
 	self->radius = 1.0;
+	self->show_spoke = false;
 	return 0;
 }
 
@@ -932,8 +937,11 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
 	error = error || parse_attrib_to_int(xml, &body->id, "id", false, body_auto_id());
-	error = error || parse_attrib_to_string(xml, &body->name, "name", false, "body_rock");
-	error = error || parse_attrib_to_bool(xml, &body->show_cs, "show_cs", false, false);
+	char name[20];
+	sprintf(name, "body_%03d", body_auto_id());
+	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
+	error = error || parse_attrib_to_bool(xml, &body->show_shape_frame, "show_shape_frame", false, false);
+	error = error || parse_attrib_to_bool(xml, &body->show_body_frame, "show_body_frame", false, true);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_id, "show_id", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->filled, "filled", false, true);
@@ -956,6 +964,7 @@ int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 
 	error = error || parse_body_xml(xml, (body_t *)ball);
 	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
+	error = error || parse_attrib_to_bool(xml, &ball->show_spoke, "show_spoke", false, false);
 	if(error) {
 		ERROR("Error parsing ball XML\n");
 		return -1;
@@ -1221,6 +1230,42 @@ void print_body_info(body_t *body) {
 		body->id, body->x, body->y, body->theta);
 }
 
+static void body_transform_point_body2ground(
+		body_t *body,
+		float x_b, float y_b,
+		float *x_g, float *y_g)
+{
+	float sin_1, cos_1;
+	float arg_1;
+	arg_1 = body->theta + body->theta_offset;
+	sin_1 = sin(arg_1);
+	cos_1 = cos(arg_1);
+
+	*x_g = body->x + (x_b * cos_1) - (y_b * sin_1);
+	*y_g = body->y + (y_b * cos_1) + (x_b * sin_1);
+}
+
+static void body_transform_points_body2ground(
+		body_t *body, int num_points,
+		float *x_b, float *y_b,
+		float *x_g, float *y_g)
+{
+	float sin_1, cos_1;
+	float arg_1;
+	arg_1 = body->theta + body->theta_offset;
+	sin_1 = sin(arg_1);
+	cos_1 = cos(arg_1);
+
+	int i;
+	for(i=0; i<num_points; i++) {
+		float tmp_x, tmp_y;
+		tmp_x = body->x + (x_b[i] * cos_1) - (y_b[i] * sin_1);
+		tmp_y = body->y + (y_b[i] * cos_1) + (x_b[i] * sin_1);
+		x_g[i] = tmp_x;
+		y_g[i] = tmp_y;
+	}
+}
+
 static void body_transform_point_shape2ground(
 		body_t *body,
 		float x_s, float y_s,
@@ -1272,6 +1317,8 @@ static void body_transform_points_shape2ground(
 #define X_USER_TO_PX(x) (x_m * (x) + x_b)
 #define Y_USER_TO_PX(y) (y_m * (y) + y_b)
 #define L_USER_TO_PX(l) fabs(x_m * (l))
+#define L_PX_TO_USER(l) fabs((l) / x_m)
+#define FRAME_SIZE_PX (20)
 
 gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_ptr dp = app_data.gui.drawer;
@@ -1325,58 +1372,72 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		float sin_ = sin(body->theta + body->theta_offset);
 		float cos_ = cos(body->theta + body->theta_offset);
 		switch(body->type) {
-			case BODY_TYPE_BALL: {
-				draw_set_color(dp, 1,0,0);
-				float r = ((ball_t *)body)->radius;
-				float x_c, y_c;
-				body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
-				float x_r, y_r;
-				body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
-				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
+		case BODY_TYPE_BALL: {
+			draw_set_color(dp, 1,0,0);
+			float r = ((ball_t *)body)->radius;
+			float x_c, y_c;
+			body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
+			float x_r, y_r;
+			body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
+			draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
+			if( ((ball_t *)body)->show_spoke) {
 				draw_set_color(dp, 1,1,1);
 				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
-				break;
 			}
-			case BODY_TYPE_BLOCK: {
-				block_t *block = (block_t *)body;
-				draw_set_color(dp, 0,0,1);
-				//float x[4] = {block->x1, block->x2, block->x2, block->x1};
-				//float y[4] = {block->y1, block->y1, block->y2, block->y2};
-				float w_2 = block->width/2.0;
-				float h_2 = block->height/2.0;
-				float x[4] = {-w_2, +w_2, +w_2, -w_2};
-				float y[4] = {-h_2, -h_2, +h_2, +h_2};
-				body_transform_points_shape2ground(body, 4, x, y, x, y);
-				int i;
-				for(i=0; i<4; i++) {
-					x[i] = X_USER_TO_PX(x[i]);
-					y[i] = Y_USER_TO_PX(y[i]);
-				}
-				draw_polygon_filled(dp, x, y, 4);
-				break;
+			break;
+		}
+		case BODY_TYPE_BLOCK: {
+			block_t *block = (block_t *)body;
+			draw_set_color(dp, 0,0,1);
+			//float x[4] = {block->x1, block->x2, block->x2, block->x1};
+			//float y[4] = {block->y1, block->y1, block->y2, block->y2};
+			float w_2 = block->width/2.0;
+			float h_2 = block->height/2.0;
+			float x[4] = {-w_2, +w_2, +w_2, -w_2};
+			float y[4] = {-h_2, -h_2, +h_2, +h_2};
+			body_transform_points_shape2ground(body, 4, x, y, x, y);
+			int i;
+			for(i=0; i<4; i++) {
+				x[i] = X_USER_TO_PX(x[i]);
+				y[i] = Y_USER_TO_PX(y[i]);
 			}
-			case BODY_TYPE_CUSTOM: {
-				custom_t *cust = (custom_t *)body;
-				draw_set_color(dp, 0,1,0);
-				float *x = malloc(cust->node_count * sizeof(float));
-				float *y = malloc(cust->node_count * sizeof(float));
-				assert(x && y);
+			draw_polygon_filled(dp, x, y, 4);
+			break;
+		}
+		case BODY_TYPE_CUSTOM: {
+			custom_t *cust = (custom_t *)body;
+			draw_set_color(dp, 0,1,0);
+			float *x = malloc(cust->node_count * sizeof(float));
+			float *y = malloc(cust->node_count * sizeof(float));
+			assert(x && y);
 
-				int i;
-				for(i=0; i<cust->node_count; i++) {
-					body_transform_point_shape2ground(body, cust->node_x[i], cust->node_y[i], &x[i], &y[i]);
-					x[i] = X_USER_TO_PX(x[i]);
-					y[i] = Y_USER_TO_PX(y[i]);
-				}
-				draw_polygon_filled(dp, x, y, cust->node_count);
-
-				free(x);
-				free(y);
-				break;
+			int i;
+			for(i=0; i<cust->node_count; i++) {
+				body_transform_point_shape2ground(body, cust->node_x[i], cust->node_y[i], &x[i], &y[i]);
+				x[i] = X_USER_TO_PX(x[i]);
+				y[i] = Y_USER_TO_PX(y[i]);
 			}
-			default:
-				ERROR("Unsupported body type!\n");
-				exit(-1);
+			draw_polygon_filled(dp, x, y, cust->node_count);
+
+			free(x);
+			free(y);
+			break;
+		}
+		default:
+			ERROR("Unsupported body type!\n");
+			exit(-1);
+		}
+		if(body->show_body_frame) {
+			float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+			float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+			body_transform_points_body2ground(body, 3, x, y, x, y);
+			int i;
+			for(i=0; i<3; i++) {
+				x[i] = X_USER_TO_PX(x[i]);
+				y[i] = Y_USER_TO_PX(y[i]);
+			}
+			draw_set_color(dp, 0,0,0);
+			draw_polygon_outline(dp, x, y, 3);
 		}
 	}
 
