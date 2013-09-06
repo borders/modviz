@@ -972,6 +972,13 @@ int parse_connector_xml(xmlNode *xml, connector_t *connect) {
 	error = error || 
 		parse_attrib_to_enum(xml, (int *)&connect->type, "type", true, 0, conn_type_enum_map);
 	error = error || parse_attrib_to_int(xml, &connect->id, "id", true, 0);
+	error = error || parse_attrib_to_color(xml, &(connect->color), "color", false, &COLOR_BLACK);
+	error = error || parse_attrib_to_double(xml, &connect->thickness, "line_width", false, 2.0);
+
+	if(error) {
+		ERROR("Error parsing <connector> XML\n");
+		return -1;
+	}
 
 	xmlNode *xnode;
 	int attach_count = 0;
@@ -1466,7 +1473,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			else 
 				draw_circle_outline(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
 			if( ((ball_t *)body)->show_spoke) {
-				draw_set_color(dp, 1,1,1);
+				draw_set_color(dp, 1,1,1); // just use white here
 				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
 			}
 			break;
@@ -1547,8 +1554,8 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		connector_t *connect = app_data.connectors[i];
 		switch(connect->type) {
 			case CONN_TYPE_SPRING:
-				draw_set_color(dp, 0,0,0);
-				draw_set_line_width(dp, 2);
+				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
+				draw_set_line_width(dp, connect->thickness);
 
 				float x1, y1, x2, y2;
 				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
@@ -1574,7 +1581,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				break;
 			case CONN_TYPE_LINE: {
 				draw_set_color(dp, 0,0,0);
-				draw_set_line_width(dp, 2);
+				draw_set_line_width(dp, connect->thickness);
 				float x1, y1, x2, y2;
 				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
 				body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
