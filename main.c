@@ -1314,7 +1314,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				float x_r, y_r;
 				body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
 				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
-				draw_set_color(dp, 0,0,0);
+				draw_set_color(dp, 1,1,1);
 				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
 				break;
 			}
