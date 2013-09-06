@@ -15,7 +15,7 @@
 	/>
 
 	<ball name="pendulum_ball" id="10" radius="1" x="0" y="0" x_offset="0" y_offset="5.0" theta="0.0" />
-	<connector name="pendulum_shaft" id="777" type="line" line_width="4.0">
+	<connector name="pendulum_shaft" id="777" type="line" line_width="4.0" color="#234567">
 		<attach id="10" x="0.0" y="0.0" />
 		<attach id="10" x="0.0" y="-5.0" />
 	</connector>

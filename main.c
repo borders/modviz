@@ -1580,7 +1580,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 				draw_polygon_outline(dp, x_px, y_px, 9);
 				break;
 			case CONN_TYPE_LINE: {
-				draw_set_color(dp, 0,0,0);
+				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
 				draw_set_line_width(dp, connect->thickness);
 				float x1, y1, x2, y2;
 				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
