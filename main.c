@@ -1447,7 +1447,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		x_b = width/2.0 - x_m * (xmin+xmax)/2.0;
 	}
 	
-	// now draw the ground coordinate system
+	// now draw the ground coordinate system ***************************
 	draw_set_color(dp, 0.5,0.5,0.5);
 	draw_line(dp, X_USER_TO_PX(0), Y_USER_TO_PX(ymin), X_USER_TO_PX(0), Y_USER_TO_PX(ymax));
 	draw_line(dp, X_USER_TO_PX(xmin), Y_USER_TO_PX(0), X_USER_TO_PX(xmax), Y_USER_TO_PX(0));
@@ -1455,7 +1455,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	//draw_set_color(dp, 0, 0, 0);	
 	//draw_text(dp, "hello world", 10, X_USER_TO_PX(0), Y_USER_TO_PX(0), ANCHOR_MIDDLE_MIDDLE);
 
-	// draw all bodies
+	// draw all bodies *************************************************
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
 		float sin_ = sin(body->theta + body->theta_offset);
@@ -1549,7 +1549,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		}
 	}
 
-	// draw all the connectors
+	// draw all the connectors ************************************************
 	for(i=0; i < app_data.num_connectors; i++) {
 		connector_t *connect = app_data.connectors[i];
 		switch(connect->type) {
@@ -1594,6 +1594,50 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			default:
 				ERROR("Unsupported connector type!\n");
 				exit(-1);
+		}
+	}
+
+	// draw all the grounds ************************************************
+	for(i=0; i < app_data.num_grounds; i++) {
+		ground_t *gnd = app_data.grounds[i];
+		switch(gnd->type) {
+		case GND_TYPE_LINE: {
+			draw_set_color(dp, 0,0,0);
+			draw_set_line_width(dp, 2.0);
+			draw_line ( dp,
+				X_USER_TO_PX(gnd->x1), Y_USER_TO_PX(gnd->y1),
+				X_USER_TO_PX(gnd->x2), Y_USER_TO_PX(gnd->y2)
+			);
+			break;
+		}
+		case GND_TYPE_HASH: {
+			draw_set_color(dp, 0,0,0);
+			draw_set_line_width(dp, 2.0);
+			draw_line ( dp,
+				X_USER_TO_PX(gnd->x1), Y_USER_TO_PX(gnd->y1),
+				X_USER_TO_PX(gnd->x2), Y_USER_TO_PX(gnd->y2)
+			);
+			float x1_px = X_USER_TO_PX(gnd->x1);
+			float y1_px = Y_USER_TO_PX(gnd->y1);
+			float x2_px = X_USER_TO_PX(gnd->x2);
+			float y2_px = Y_USER_TO_PX(gnd->y2);
+			float dx = x2_px-x1_px;
+			float dy = y2_px-y1_px;
+			float L = sqrt(dx * dx + dy * dy);
+			int num_hashes = L / 10;
+			int i;
+			for(i=0; i < num_hashes; i++) {
+				draw_line ( dp,
+					x1_px + (float)i/num_hashes*dx, y1_px + (float)i/num_hashes*dy,
+					x1_px + (float)i/num_hashes*dx+5, y1_px + (float)i/num_hashes*dy+5
+				);
+			}
+			break;
+		}
+		default:
+			//ERROR("Unsupported ground type!\n");
+			//exit(-1);
+			;
 		}
 	}
 
