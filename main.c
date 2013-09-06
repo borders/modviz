@@ -1613,23 +1613,27 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		case GND_TYPE_HASH: {
 			draw_set_color(dp, 0,0,0);
 			draw_set_line_width(dp, 2.0);
-			draw_line ( dp,
-				X_USER_TO_PX(gnd->x1), Y_USER_TO_PX(gnd->y1),
-				X_USER_TO_PX(gnd->x2), Y_USER_TO_PX(gnd->y2)
-			);
 			float x1_px = X_USER_TO_PX(gnd->x1);
 			float y1_px = Y_USER_TO_PX(gnd->y1);
 			float x2_px = X_USER_TO_PX(gnd->x2);
 			float y2_px = Y_USER_TO_PX(gnd->y2);
+			draw_line(dp, x1_px, y1_px, x2_px, y2_px);
 			float dx = x2_px-x1_px;
 			float dy = y2_px-y1_px;
+			float theta = atan2(dy,dx);
 			float L = sqrt(dx * dx + dy * dy);
 			int num_hashes = L / 10;
+			float hash_len = 10;
+			float hash_rads = 0.7;
+			float sin_ = sin(theta + hash_rads);
+			float cos_ = cos(theta + hash_rads);
 			int i;
 			for(i=0; i < num_hashes; i++) {
+				float fract = (float)i/num_hashes;
 				draw_line ( dp,
-					x1_px + (float)i/num_hashes*dx, y1_px + (float)i/num_hashes*dy,
-					x1_px + (float)i/num_hashes*dx+5, y1_px + (float)i/num_hashes*dy+5
+					x1_px + fract*dx, y1_px + fract*dy,
+					x1_px + fract*dx + hash_len*cos_, 
+					y1_px + fract*dy + hash_len*sin_
 				);
 			}
 			break;
