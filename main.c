@@ -66,6 +66,11 @@ typedef struct {
 	double y;
 	double theta;
 
+	double x_offset;
+	double y_offset;
+	double theta_offset;
+	double phi;
+
 	char *name; // user-specified name string
 	int id; // user-specified id number
 
@@ -229,6 +234,11 @@ int body_init(body_t *self, body_type_enum type) {
 	self->x = 0.0;
 	self->y = 0.0;
 	self->theta = 0.0;
+
+	self->x_offset = 0.0;
+	self->y_offset = 0.0;
+	self->theta_offset = 0.0;
+	self->phi = 0.0;
 
 	self->name = NULL;
 	self->id = -1;
@@ -759,8 +769,8 @@ int parse_input_format_xml(xmlNode *xml) {
 		
 	xmlNode *xnode;
 	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
-		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "entry") ) {
-			DEBUG("  Got <entry> element\n");
+		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "map") ) {
+			DEBUG("  Got <map> element\n");
 			if(app_data.num_input_maps >= MAX_INPUT_MAPS) {
 				ERROR("Too many input format entries!!\n");
 				exit(-1);
@@ -799,7 +809,7 @@ int parse_input_format_xml(xmlNode *xml) {
 					}
 					body_t *body = lookup_body_by_id(id);
 					if(body == NULL) {
-						ERROR("body ID (%d) referenced by <entry> element does exist!\n", id);
+						ERROR("body ID (%d) referenced by <map> element does exist!\n", id);
 						free(map);
 						return -1;
 					}
@@ -915,6 +925,9 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	error = error || parse_attrib_to_double(xml, &(body->x), "x", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->y), "y", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->theta), "theta", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->x_offset), "x_offset", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->y_offset), "y_offset", false , 0.);
+	error = error || parse_attrib_to_double(xml, &(body->theta_offset), "theta_offset", false , 0.);
 	if(error) {
 		ERROR("Error parsing body XML\n");
 		return -1;
@@ -1194,6 +1207,51 @@ void print_body_info(body_t *body) {
 		body->id, body->x, body->y, body->theta);
 }
 
+static void body_transform_point_shape2ground(
+		body_t *body,
+		float x_s, float y_s,
+		float *x_g, float *y_g)
+{
+	float sin_1, sin_2, cos_1, cos_2;
+	float arg_1, arg_2;
+	arg_1 = body->theta + body->theta_offset;
+	arg_2 = body->theta + body->theta_offset + body->phi;
+	sin_1 = sin(arg_1);
+	cos_1 = cos(arg_1);
+	sin_2 = sin(arg_2);
+	cos_2 = cos(arg_2);
+
+	*x_g = body->x + body->x_offset * cos_1 - body->y_offset * sin_1 
+	       + x_s * cos_2 - y_s * sin_2;
+	*y_g = body->y + body->y_offset * cos_1 + body->x_offset * sin_1 
+	       + y_s * cos_2 + x_s * sin_2;
+}
+
+static void body_transform_points_shape2ground(
+		body_t *body, int num_points,
+		float *x_s, float *y_s,
+		float *x_g, float *y_g)
+{
+	float sin_1, sin_2, cos_1, cos_2;
+	float arg_1, arg_2;
+	arg_1 = body->theta + body->theta_offset;
+	arg_2 = body->theta + body->theta_offset + body->phi;
+	sin_1 = sin(arg_1);
+	cos_1 = cos(arg_1);
+	sin_2 = sin(arg_2);
+	cos_2 = cos(arg_2);
+
+	int i;
+	for(i=0; i<num_points; i++) {
+		x_g[i] = body->x + body->x_offset * cos_1 - body->y_offset * sin_1 
+				 + x_s[i] * cos_2 - y_s[i] * sin_2;
+		y_g[i] = body->y + body->y_offset * cos_1 + body->x_offset * sin_1 
+				 + y_s[i] * cos_2 + x_s[i] * sin_2;
+	}
+}
+	
+ 
+
 #define X_USER_TO_PX(x) (x_m * (x) + x_b)
 #define Y_USER_TO_PX(y) (y_m * (y) + y_b)
 #define L_USER_TO_PX(l) fabs(x_m * (l))
@@ -1247,59 +1305,47 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all bodies
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
-		float sin_ = sin(body->theta);
-		float cos_ = cos(body->theta);
+		float sin_ = sin(body->theta + body->theta_offset);
+		float cos_ = cos(body->theta + body->theta_offset);
 		switch(body->type) {
 			case BODY_TYPE_BALL: {
 				draw_set_color(dp, 1,0,0);
 				float r = ((ball_t *)body)->radius;
-				// draw the ball itself
-				draw_circle_filled (
-					dp, 
-					X_USER_TO_PX(body->x), 
-					Y_USER_TO_PX(body->y), 
-					L_USER_TO_PX(r)
-				);
-				// draw a radial line on it to indicate rotation angle
+				float x_c, y_c;
+				body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
+				float x_r, y_r;
+				body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
+				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
 				draw_set_color(dp, 0,0,0);
-				draw_line (
-					dp,
-					X_USER_TO_PX(body->x),
-					Y_USER_TO_PX(body->y),
-					X_USER_TO_PX(body->x + r * cos_ ),
-					Y_USER_TO_PX(body->y + r * sin_ )
-				);
+				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
 				break;
 			}
 			case BODY_TYPE_BLOCK: {
 				block_t *block = (block_t *)body;
 				draw_set_color(dp, 0,0,1);
-				float x[4], y[4];
-				x[0] = X_USER_TO_PX(body->x + block->x1 * cos_ - block->y1 * sin_);
-				y[0] = Y_USER_TO_PX(body->y + block->x1 * sin_ + block->y1 * cos_);
-
-				x[1] = X_USER_TO_PX(body->x + block->x2 * cos_ - block->y1 * sin_);
-				y[1] = Y_USER_TO_PX(body->y + block->x2 * sin_ + block->y1 * cos_);
-
-				x[2] = X_USER_TO_PX(body->x + block->x2 * cos_ - block->y2 * sin_);
-				y[2] = Y_USER_TO_PX(body->y + block->x2 * sin_ + block->y2 * cos_);
-
-				x[3] = X_USER_TO_PX(body->x + block->x1 * cos_ - block->y2 * sin_);
-				y[3] = Y_USER_TO_PX(body->y + block->x1 * sin_ + block->y2 * cos_);
+				float x[4] = {block->x1, block->x2, block->x2, block->x1};
+				float y[4] = {block->y1, block->y1, block->y2, block->y2};
+				body_transform_points_shape2ground(body, 4, x, y, x, y);
+				int i;
+				for(i=0; i<4; i++) {
+					x[i] = X_USER_TO_PX(x[i]);
+					y[i] = Y_USER_TO_PX(y[i]);
+				}
 				draw_polygon_filled(dp, x, y, 4);
 				break;
 			}
 			case BODY_TYPE_CUSTOM: {
 				custom_t *cust = (custom_t *)body;
 				draw_set_color(dp, 0,1,0);
-				float *x = malloc(cust->node_count);
-				float *y = malloc(cust->node_count);
+				float *x = malloc(cust->node_count * sizeof(float));
+				float *y = malloc(cust->node_count * sizeof(float));
 				assert(x && y);
 
 				int i;
 				for(i=0; i<cust->node_count; i++) {
-					x[i] = X_USER_TO_PX(body->x + cust->node_x[i] * cos_ - cust->node_y[i] * sin_);
-					y[i] = Y_USER_TO_PX(body->y + cust->node_x[i] * sin_ + cust->node_y[i] * cos_);
+					body_transform_point_shape2ground(body, cust->node_x[i], cust->node_y[i], &x[i], &y[i]);
+					x[i] = X_USER_TO_PX(x[i]);
+					y[i] = Y_USER_TO_PX(y[i]);
 				}
 				draw_polygon_filled(dp, x, y, cust->node_count);
 
@@ -1320,41 +1366,21 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case CONN_TYPE_SPRING:
 				draw_set_color(dp, 0,0,0);
 				draw_set_line_width(dp, 2);
-				float sin_1 = sin(connect->body_1->theta);
-				float cos_1 = cos(connect->body_1->theta);
-				float sin_2 = sin(connect->body_2->theta);
-				float cos_2 = cos(connect->body_2->theta);
+
 				float x1, y1, x2, y2;
-				x1 = connect->body_1->x + connect->x1 * cos_1 - connect->y1 * sin_1;
-				y1 = connect->body_1->y + connect->x1 * sin_1 + connect->y1 * cos_1;
-				x2 = connect->body_2->x + connect->x2 * cos_2 - connect->y2 * sin_2;
-				y2 = connect->body_2->y + connect->x2 * sin_2 + connect->y2 * cos_2;
+				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
+				body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
 
-				// should wrap the stuff below in a function, like:
-				//draw_spring_between_points(x1,y1,x2,y2);
-
-				float dx, dy;
-				dx = x2 - x1;
-				dy = y2 - y1;
+				float dx = x2 - x1;
+				float dy = y2 - y1;
 				float L = sqrt(dx * dx + dy * dy);
 				float h = 0.2 * L;
 				float theta = atan2(dy, dx);
 				float sin_, cos_;
 				sin_ = sin(theta);
 				cos_ = cos(theta);
-				float x[9], y[9];
-				x[0] = 0.0; y[0] = 0.0;
-				x[1] = 0.2*L; y[1] = 0.0;
-
-				x[2] = 0.26*L; y[2] = +h/2.0;
-				x[3] = 0.38*L; y[3] = -h/2.0;
-				x[4] = 0.50*L; y[4] = +h/2.0;
-				x[5] = 0.62*L; y[5] = -h/2.0;
-				x[6] = 0.74*L; y[6] = +h/2.0;
-
-				x[7] = 0.8*L; y[7] = 0.0;
-				x[8] = L; y[8] = 0.0;
-
+				float x[9] = {0.0, 0.2*L, 0.26*L, 0.38*L, 0.50*L, 0.62*L, 0.74*L, 0.8*L,  L};
+				float y[9] = {0.0, 0.0,   +h/2.0, -h/2.0, +h/2.0, -h/2.0, +h/2.0, 0.0,  0.0};
 				int i;
 				float x_px[9], y_px[9];
 				for(i=0; i<9; i++) {
@@ -1366,16 +1392,12 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case CONN_TYPE_LINE: {
 				draw_set_color(dp, 0,0,0);
 				draw_set_line_width(dp, 2);
-				float sin_1 = sin(connect->body_1->theta);
-				float cos_1 = cos(connect->body_1->theta);
-				float sin_2 = sin(connect->body_2->theta);
-				float cos_2 = cos(connect->body_2->theta);
-				draw_line (
-					dp,
-					X_USER_TO_PX(connect->body_1->x + connect->x1 * cos_1 - connect->y1 * sin_1),
-					Y_USER_TO_PX(connect->body_1->y + connect->x1 * sin_1 + connect->y1 * cos_1),
-					X_USER_TO_PX(connect->body_2->x + connect->x2 * cos_2 - connect->y2 * sin_2),
-					Y_USER_TO_PX(connect->body_2->y + connect->x2 * sin_2 + connect->y2 * cos_2)
+				float x1, y1, x2, y2;
+				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
+				body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
+				draw_line ( dp,
+					X_USER_TO_PX(x1), Y_USER_TO_PX(y1),
+					X_USER_TO_PX(x2), Y_USER_TO_PX(y2)
 				);
 				break;
 			}

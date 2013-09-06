@@ -7,13 +7,16 @@
 		x="0.0"
 		y="0.0"
 		theta="0.0"
+		x_offset="0.0"
+		y_offset="0.0"
+		theta_offset="0.0"
 	/>
 
 <!--
 	<ball name="small pulley" id="2" radius="0.4" x="-2.3" y="1.6" theta="0.0" />
 -->
 
-	<block id="3" name="small_block" x1="0.0" y1="0.0" x2="2.0" y2="3.0" x="-2.0" y="-2.0" theta="0.0" />
+	<block id="3" name="small_block" x1="-1.0" y1="-2" x2="+1.0" y2="+2" x="0.0" y="0.0" theta="0.0" />
 
 	<custom id="4" name="crank" x="-6.0" y="-5.0" theta="0.1" >
 		<node x="0.0" y="0.0" />
@@ -51,10 +54,10 @@
 	<ground type="hash" id="-5" x1="0" y1="0" x2="1" y2="0" />
 
 	<input_format>
-		<!--<entry column="1" type="time" />-->
-		<entry column="2" type="body" id="1" field="x" />
-		<entry column="3" type="body" id="1" field="y" />
-		<entry column="4" type="body" id="4" field="theta" />
+		<map column="1" type="time" />
+		<map column="2" type="body" id="1" field="x" />
+		<map column="3" type="body" id="1" field="y" />
+		<map column="4" type="body" id="4" field="theta" />
 	</input_format>
 
 </modviz_config>
