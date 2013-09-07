@@ -1773,10 +1773,11 @@ gboolean slider_changed2_cb (
 		return TRUE;
 	}
 
-	// Otherwise (we must be paused), set the active frame index based on slider position
+	// Otherwise (we must be paused)
 	//printf("scroll type: %d\n", scroll);
 	switch(scroll) {
 	case GTK_SCROLL_JUMP:
+		// set the active frame index and time based on slider position
 		if(app_data.explicit_time) {
 			int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
 			if (frame_index < 0)
@@ -1879,6 +1880,30 @@ gboolean slider_changed2_cb (
 			if(app_data.active_frame_index < 0) {
 				app_data.active_frame_index = 0;
 			}
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	case GTK_SCROLL_START:
+		{
+			app_data.active_frame_index = 0;
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	case GTK_SCROLL_END:
+		{
+			app_data.active_frame_index = app_data.num_frames - 1;
 			double t;
 			if(app_data.explicit_time) {
 				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
