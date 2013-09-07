@@ -178,6 +178,11 @@ typedef struct {
 	draw_ptr drawer;
 } gui_t;
 
+typedef struct {
+	double min;
+	double max;
+} range_t;
+
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
 	int num_bodies;
@@ -209,6 +214,9 @@ typedef struct _app_data_t {
 
 	int active_frame_index;
 
+	range_t x_range;
+	range_t y_range;
+
 } app_data_t;
 
 static app_data_t app_data;
@@ -233,6 +241,11 @@ void app_data_init(app_data_t *d) {
 	d->time_map_index = -1;
 	d->dt = 1.0;
 	d->paused = false;
+
+	d->x_range.min = -10.0;
+	d->x_range.max = +10.0;
+	d->y_range.min = -10.0;
+	d->y_range.max = +10.0;
 }
 
 int body_init(body_t *self, body_type_enum type) {
@@ -1148,9 +1161,26 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 		exit(-1); \
 	}
 
+int parse_root_attribs(xmlNode *xml) {
+	int error = 0;
+	error = error || parse_attrib_to_double(xml, &(app_data.x_range.min), "x_min", false, -10.0);
+	error = error || parse_attrib_to_double(xml, &(app_data.x_range.max), "x_max", false, +10.0);
+	error = error || parse_attrib_to_double(xml, &(app_data.y_range.min), "y_min", false, -10.0);
+	error = error || parse_attrib_to_double(xml, &(app_data.y_range.max), "y_max", false, +10.0);
+	if(error) {
+		return -1;
+	}
+	return 0;
+}
+
 int parse_config_xml(xmlNode *xml) {
-	xmlNode *curNode;
 	printf("parsing config XML...\n");
+
+	if(parse_root_attribs(xml)) {
+		ERROR("*** Error parsing top level attributes\n");
+	}
+
+	xmlNode *curNode;
 	for(curNode = xml->children; curNode != NULL; curNode = curNode->next) {
 		if(curNode->type != XML_ELEMENT_NODE) {
 			//printf("skipping non-Element node...\n");
@@ -1425,10 +1455,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_set_line_width(dp, 1);
 	draw_rectangle_filled(dp, 0, 0, width, height);
 
-	float xmin = -10.0;
-	float xmax = +10.0;
-	float ymin = -10.0;
-	float ymax = +10.0;
+	float xmin = app_data.x_range.min;
+	float xmax = app_data.x_range.max;
+	float ymin = app_data.y_range.min;
+	float ymax = app_data.y_range.max;
 
 	/* These are used to convert from user coordinates to pixel coordinates
 	*  Specifically: 
