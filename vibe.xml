@@ -25,9 +25,15 @@
 		color="red"
 	/>
 
-	<ground name="right side rail" type="hash" x1="3" y1="-3" x2="3" y2="+3" />
-	<ground name="left side rail"	type="hash" x1="-3" y1="-3" x2="-3" y2="+3" />
+	<ground name="right side rail" type="hash" x1="3.1" y1="-3" x2="3.1" y2="+3" />
+	<ground name="left side rail"	type="hash" x1="-3.1" y1="+3" x2="-3.1" y2="-3" />
+	<ball id="99" x="0" y="+8" radius="0" />
 	<ground name="ceiling"	      type="hash" x1="+3" y1="+8" x2="-3" y2="+8" />
+
+	<connector type="spring" name="spring" id="555">
+		<attach id="99" x="0" y="0" />
+		<attach id="2" x="0" y="2" />
+	</connector>
 
 	<input_format>
 		<map column="1" type="time" />

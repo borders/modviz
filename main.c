@@ -756,7 +756,8 @@ int parse_attrib_to_string(xmlNode *xml, char **dest, char *attrib_name, bool re
 				fprintf(stderr, "Error allocating string memory!\n");
 				exit(-1);
 			}
-			strcpy(*dest, dflt);
+			strcpy(s, dflt);
+			*dest = s;
 			DEBUG2("  Didn't find \"%s\" attribute. Using default value (%s) instead...\n", attrib_name, dflt);
 			return 0;
 		}
@@ -1041,7 +1042,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 
 	error = error || parse_attrib_to_int(xml, &body->id, "id", false, body_auto_id());
 	char name[20];
-	sprintf(name, "body_%03d", body_auto_id());
+	sprintf(name, "body_%03d", body->id);
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
 	error = error || parse_attrib_to_bool(xml, &body->show_shape_frame, "show_shape_frame", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_body_frame, "show_body_frame", false, false);
@@ -1069,7 +1070,7 @@ int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 
 	error = error || parse_body_xml(xml, (body_t *)ball);
 	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
-	error = error || parse_attrib_to_bool(xml, &ball->show_spoke, "show_spoke", false, false);
+	error = error || parse_attrib_to_bool(xml, &(ball->show_spoke), "show_spoke", false, false);
 	if(error) {
 		ERROR("Error parsing ball XML\n");
 		return -1;
@@ -1937,12 +1938,12 @@ int main(int argc, char *argv[]) {
 	char line[2000];
 	unsigned int line_num = 0;
 	while(fgets(line, sizeof(line), fp) != NULL) {
+		//printf("got line (%d chars long): %s\n", (int)strlen(line), line);
 		line_num++;
+		//printf("here %d\n", line_num);
 		int i;
 		char *fields[MAX_FIELDS];
-		printf("got line (%d chars long): %s\n", (int)strlen(line), line);
 
-		printf("here %d\n", line_num);
 
 		int field_count = split_line_into_fields(line, fields, MAX_FIELDS);
 		if(field_count < 0) {
