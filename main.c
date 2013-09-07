@@ -1884,7 +1884,7 @@ void init_gui(void) {
 
   gtk_widget_show_all (window);
 
-	g_timeout_add(200, update_func, NULL);
+	g_timeout_add(30, update_func, NULL);
 }
 
 #define MAX_FIELDS 30

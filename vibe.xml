@@ -1,42 +1,50 @@
-<modviz_config x_min="-10" x_max="+15" y_min="-8" y_max="+18" >
+<modviz_config x_min="-0.01" x_max="+0.01" y_min="-0.025" y_max="+0.025" >
 
 	<block 
 		id="2" 
 		name="block" 
-		width="6" 
-		height="4" 
+		width="0.02" 
+		height="0.01" 
 		x="0.0" 
 		y="0.0" 
 		theta="0.0" 
 		phi="0.0" 
 	/>
 
+	<ground name="right side rail" type="hash" x1="0.011" y1="-0.02" x2="0.011" y2="0.02" />
+	<ground name="left side rail"	type="hash" x1="-0.011" y1="0.02" x2="-0.011" y2="-0.02" />
+	<ball id="99" x="0" y="0.02" radius="0" />
+	<ground name="ceiling" type="hash" x1="0.01" y1="0.02" x2="-0.01" y2="0.02" />
+
 	<ball
 		id="1"
 		name="eccentric mass"
-		radius="1.5"
+		radius="0.001"
 		x="0.0"
 		y="0.0"
 		theta="0.0"
 		x_offset="0.0"
-		y_offset="-2.0"
+		y_offset="-0.002"
 		theta_offset="0.0"
 		filled="true"
 		color="red"
 	/>
 
-	<ground name="right side rail" type="hash" x1="3.1" y1="-3" x2="3.1" y2="+3" />
-	<ground name="left side rail"	type="hash" x1="-3.1" y1="+3" x2="-3.1" y2="-3" />
-	<ball id="99" x="0" y="+8" radius="0" />
-	<ground name="ceiling"	      type="hash" x1="+3" y1="+8" x2="-3" y2="+8" />
-
-	<connector type="spring" name="spring" id="555">
+	<connector type="spring" name="spring" id="500">
 		<attach id="99" x="0" y="0" />
-		<attach id="2" x="0" y="2" />
+		<attach id="2" x="0" y="0.005" />
+	</connector>
+
+	<connector type="line" line_width="3" color="blue" id="501">
+		<attach id="1" x="0" y="0" />
+		<attach id="1" x="0" y="0.002" />
 	</connector>
 
 	<input_format>
 		<map column="1" type="time" />
+		<map column="2" type="body" id="1" field="theta" />
+		<map column="4" type="body" id="2" field="y" />
+		<map column="4" type="body" id="1" field="y" />
 	</input_format>
 
 </modviz_config>
