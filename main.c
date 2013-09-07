@@ -84,6 +84,7 @@ typedef struct {
 	bool show_name;
 	bool show_id;
 	bool filled;
+	double line_width;
 	color_t color;
 } body_t;
 
@@ -254,6 +255,7 @@ int body_init(body_t *self, body_type_enum type) {
 	self->show_name = false;
 	self->show_id = false;
 	self->filled = true;
+	self->line_width = 1.0;
 	self->color = COLOR_BLACK;
 	return 0;
 }
@@ -1040,6 +1042,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	error = error || parse_attrib_to_double(xml, &(body->y_offset), "y_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->theta_offset), "theta_offset", false , 0.);
 	error = error || parse_attrib_to_double(xml, &(body->phi), "phi", false , 0.);
+	error = error || parse_attrib_to_double(xml, &body->line_width, "line_width", false, 1.0);
 	error = error || parse_attrib_to_color(xml, &(body->color), "color", false, &COLOR_BLACK);
 	if(error) {
 		ERROR("Error parsing body XML\n");
@@ -1470,8 +1473,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
 			if(body->filled) 
 				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
-			else 
+			else {
+				draw_set_line_width(dp, body->line_width);
 				draw_circle_outline(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
+			}
 			if( ((ball_t *)body)->show_spoke) {
 				draw_set_color(dp, 1,1,1); // just use white here
 				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
@@ -1493,8 +1498,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			}
 			if(body->filled) 
 				draw_polygon_filled(dp, x, y, 4);
-			else
+			else {
+				draw_set_line_width(dp, body->line_width);
 				draw_polygon_outline(dp, x, y, 4);
+			}
 			break;
 		}
 		case BODY_TYPE_CUSTOM: {
@@ -1512,8 +1519,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			}
 			if(body->filled) 
 				draw_polygon_filled(dp, x, y, cust->node_count);
-			else
+			else {
+				draw_set_line_width(dp, body->line_width);
 				draw_polygon_outline(dp, x, y, cust->node_count);
+			}
 
 			free(x);
 			free(y);
