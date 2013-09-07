@@ -1760,7 +1760,12 @@ static double get_time_from_frame(frame_ptr_t pframe) {
 	return t;
 }
 
-gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, gpointer user_data) {
+gboolean slider_changed2_cb (
+		GtkRange *range,
+		GtkScrollType scroll,
+		gdouble value, 
+		gpointer user_data) 
+{
 	//printf("slider changed 2!\n");
 
 	// if NOT paused, prevent user from moving the slider
@@ -1769,55 +1774,122 @@ gboolean slider_changed2_cb(GtkRange *range,GtkScrollType scroll,gdouble value, 
 	}
 
 	// Otherwise (we must be paused), set the active frame index based on slider position
-	if(app_data.explicit_time) {
-		int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
-		if (frame_index < 0)
-			frame_index = 0;
-		else if( frame_index >= app_data.num_frames)
-			frame_index = app_data.num_frames - 1;
-		double t = get_time_from_frame(app_data.frames[frame_index]);
-		double delta= fabs(t - value);
-		if(t < value) {
-			while(1) {
-				if( (frame_index+1) >= app_data.num_frames) {
-					break;
+	//printf("scroll type: %d\n", scroll);
+	switch(scroll) {
+	case GTK_SCROLL_JUMP:
+		if(app_data.explicit_time) {
+			int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+			if (frame_index < 0)
+				frame_index = 0;
+			else if( frame_index >= app_data.num_frames)
+				frame_index = app_data.num_frames - 1;
+			double t = get_time_from_frame(app_data.frames[frame_index]);
+			double delta= fabs(t - value);
+			if(t < value) {
+				while(1) {
+					if( (frame_index+1) >= app_data.num_frames) {
+						break;
+					}
+					double t_next = get_time_from_frame(app_data.frames[frame_index + 1]);
+					double delta_next = fabs(t_next - value);
+					if(delta_next > delta) {
+						break;
+					}
+					t = t_next;
+					delta = delta_next;
+					frame_index++;
 				}
-				double t_next = get_time_from_frame(app_data.frames[frame_index + 1]);
-				double delta_next = fabs(t_next - value);
-				if(delta_next > delta) {
-					break;
-				}
-				t = t_next;
-				delta = delta_next;
-				frame_index++;
 			}
-		}
-		else if(t > value) {
-			while(t > value) {
-				if(frame_index <= 0) {
-					break;
+			else if(t > value) {
+				while(t > value) {
+					if(frame_index <= 0) {
+						break;
+					}
+					double t_next = get_time_from_frame(app_data.frames[frame_index - 1]);
+					double delta_next = fabs(t_next - value);
+					if(delta_next > delta) {
+						break;
+					}
+					t = t_next;
+					delta = delta_next;
+					frame_index--;
 				}
-				double t_next = get_time_from_frame(app_data.frames[frame_index - 1]);
-				double delta_next = fabs(t_next - value);
-				if(delta_next > delta) {
-					break;
-				}
-				t = t_next;
-				delta = delta_next;
-				frame_index--;
 			}
+			app_data.active_frame_index = frame_index;
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
 		}
-		app_data.active_frame_index = frame_index;
-		gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
-	}
-	else {
-		int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
-		if (frame_index < 0)
-			frame_index = 0;
-		else if( frame_index >= app_data.num_frames)
-			frame_index = app_data.num_frames - 1;
-		app_data.active_frame_index = frame_index;
-		gtk_range_set_value((GtkRange *)app_data.gui.slider, app_data.active_frame_index * app_data.dt);
+		else {
+			int frame_index = (value - app_data.t_min)/(app_data.t_max - app_data.t_min) * app_data.num_frames;
+			if (frame_index < 0)
+				frame_index = 0;
+			else if( frame_index >= app_data.num_frames)
+				frame_index = app_data.num_frames - 1;
+			app_data.active_frame_index = frame_index;
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, app_data.active_frame_index * app_data.dt);
+		}
+		break;
+	case GTK_SCROLL_STEP_FORWARD:
+		{
+			app_data.active_frame_index++;
+			if(app_data.active_frame_index >= app_data.num_frames) {
+				app_data.active_frame_index = app_data.num_frames - 1;
+			}
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	case GTK_SCROLL_STEP_BACKWARD:
+		{
+			app_data.active_frame_index--;
+			if(app_data.active_frame_index < 0) {
+				app_data.active_frame_index = 0;
+			}
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	case GTK_SCROLL_PAGE_FORWARD:
+		{
+			app_data.active_frame_index += 10;
+			if(app_data.active_frame_index >= app_data.num_frames) {
+				app_data.active_frame_index = app_data.num_frames - 1;
+			}
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	case GTK_SCROLL_PAGE_BACKWARD:
+		{
+			app_data.active_frame_index -= 10;
+			if(app_data.active_frame_index < 0) {
+				app_data.active_frame_index = 0;
+			}
+			double t;
+			if(app_data.explicit_time) {
+				t = get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+			} else {
+				t = app_data.active_frame_index * app_data.dt;
+			}
+			gtk_range_set_value((GtkRange *)app_data.gui.slider, t);
+			break;
+		}
+	default:
+		return TRUE;
 	}
 	update_bodies();
 	gtk_widget_queue_draw(app_data.gui.canvas);
