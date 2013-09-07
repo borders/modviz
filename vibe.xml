@@ -1,0 +1,36 @@
+<modviz_config x_min="-10" x_max="+15" y_min="-8" y_max="+18" >
+
+	<block 
+		id="2" 
+		name="block" 
+		width="6" 
+		height="4" 
+		x="0.0" 
+		y="0.0" 
+		theta="0.0" 
+		phi="0.0" 
+	/>
+
+	<ball
+		id="1"
+		name="eccentric mass"
+		radius="1.5"
+		x="0.0"
+		y="0.0"
+		theta="0.0"
+		x_offset="0.0"
+		y_offset="-2.0"
+		theta_offset="0.0"
+		filled="true"
+		color="red"
+	/>
+
+	<ground name="right side rail" type="hash" x1="3" y1="-3" x2="3" y2="+3" />
+	<ground name="left side rail"	type="hash" x1="-3" y1="-3" x2="-3" y2="+3" />
+	<ground name="ceiling"	      type="hash" x1="+3" y1="+8" x2="-3" y2="+8" />
+
+	<input_format>
+		<map column="1" type="time" />
+	</input_format>
+
+</modviz_config>

@@ -1935,9 +1935,15 @@ int main(int argc, char *argv[]) {
 		fp = stdin;
 	}
 	char line[2000];
+	unsigned int line_num = 0;
 	while(fgets(line, sizeof(line), fp) != NULL) {
+		line_num++;
 		int i;
 		char *fields[MAX_FIELDS];
+		printf("got line (%d chars long): %s\n", (int)strlen(line), line);
+
+		printf("here %d\n", line_num);
+
 		int field_count = split_line_into_fields(line, fields, MAX_FIELDS);
 		if(field_count < 0) {
 			continue;
@@ -1956,7 +1962,8 @@ int main(int argc, char *argv[]) {
 				case DATA_TYPE_DOUBLE: {
 					double d;
 					if(parse_double(fields[field_index], &d)) {
-						ERROR("Error parsing double from field!!\n");
+						ERROR("Error parsing double from field (\"%s\")\n", fields[field_index]);
+						ERROR("line: %s\n", line);
 						exit(-1);
 					}
 					//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
@@ -1986,14 +1993,14 @@ int main(int argc, char *argv[]) {
 		}
 		if(app_data.num_frames >= app_data.frames_capacity) {
 			app_data.frames_capacity *= 3;
-			app_data.frames = realloc(app_data.frames, sizeof(app_data.frames[0]));
+			app_data.frames = realloc(app_data.frames, app_data.frames_capacity * sizeof(app_data.frames[0]));
 			if(app_data.frames == NULL) {
 				ERROR("Error expanding size of 'frames'.\n");
 				exit(-1);
 			}
 		}
 		app_data.frames[app_data.num_frames++] = pframe;
-		
+	
 	}
 
 	if(!feof(fp)) {

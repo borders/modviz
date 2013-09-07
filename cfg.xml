@@ -1,4 +1,4 @@
-<modviz_config>
+<modviz_config x_min="-10" x_max="+15" y_min="-8" y_max="+18" >
 
 	<ball
 		name="main pulley"
