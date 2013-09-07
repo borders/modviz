@@ -1,4 +1,4 @@
-<modviz_config x_min="-0.01" x_max="+0.01" y_min="-0.025" y_max="+0.025" >
+<modviz_config x_min="-0.006" x_max="+0.006" y_min="-0.015" y_max="+0.025" >
 
 	<block 
 		id="2" 
@@ -11,8 +11,8 @@
 		phi="0.0" 
 	/>
 
-	<ground name="right side rail" type="hash" x1="0.011" y1="-0.02" x2="0.011" y2="0.02" />
-	<ground name="left side rail"	type="hash" x1="-0.011" y1="0.02" x2="-0.011" y2="-0.02" />
+	<ground name="right side rail" type="hash" x1="0.011" y1="-0.01" x2="0.011" y2="0.01" />
+	<ground name="left side rail"	type="hash" x1="-0.011" y1="0.01" x2="-0.011" y2="-0.01" />
 	<ball id="99" x="0" y="0.02" radius="0" />
 	<ground name="ceiling" type="hash" x1="0.01" y1="0.02" x2="-0.01" y2="0.02" />
 

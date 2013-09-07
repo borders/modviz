@@ -91,8 +91,6 @@ typedef struct {
 typedef struct {
 	body_t body;
 	double radius;
-
-	bool show_spoke;
 } ball_t;
 
 typedef struct {
@@ -304,7 +302,6 @@ void ball_dealloc(ball_t *self) {
 int ball_init(ball_t *self) {
 	body_init((body_t *)self, BODY_TYPE_BALL);
 	self->radius = 1.0;
-	self->show_spoke = false;
 	return 0;
 }
 
@@ -1070,7 +1067,6 @@ int parse_ball_xml(xmlNode *xml, ball_t *ball) {
 
 	error = error || parse_body_xml(xml, (body_t *)ball);
 	error = error || parse_attrib_to_double(xml, &(ball->radius), "radius", true , 0.0);
-	error = error || parse_attrib_to_bool(xml, &(ball->show_spoke), "show_spoke", false, false);
 	if(error) {
 		ERROR("Error parsing ball XML\n");
 		return -1;
@@ -1507,10 +1503,6 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			else {
 				draw_set_line_width(dp, body->line_width);
 				draw_circle_outline(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
-			}
-			if( ((ball_t *)body)->show_spoke) {
-				draw_set_color(dp, 1,1,1); // just use white here
-				draw_line (dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), X_USER_TO_PX(x_r), Y_USER_TO_PX(y_r));
 			}
 			break;
 		}
