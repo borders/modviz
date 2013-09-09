@@ -174,6 +174,8 @@ typedef struct {
 	GtkWidget *canvas;
 	GtkWidget *slider;
 	draw_ptr drawer;
+	GtkWidget *playback_state;
+	GtkWidget *time;
 } gui_t;
 
 typedef struct {
@@ -1701,6 +1703,13 @@ static void update_bodies(void) {
 
 }
 
+static double get_time_from_frame(frame_ptr_t pframe) {
+	assert(app_data.explicit_time);
+	input_map_t *map = app_data.input_maps[app_data.time_map_index];
+	double t = *((double *)(&pframe[map->frame_byte_offset]));
+	return t;
+}
+
 gboolean update_func(gpointer data) {
 
 	if(app_data.paused) {
@@ -1711,10 +1720,16 @@ gboolean update_func(gpointer data) {
 	update_bodies();
 
 	// set the slider value
-	if(!app_data.explicit_time) {
+	if(app_data.explicit_time) {
+		app_data.time = 
+			get_time_from_frame(app_data.frames[app_data.active_frame_index]);
+	} else {
 		app_data.time = app_data.dt * app_data.active_frame_index;
 	}
 	gtk_range_set_value((GtkRange *)app_data.gui.slider, app_data.time);
+	char str[50];
+	sprintf(str, "t=%g", app_data.time);
+	gtk_label_set_text((GtkLabel*)app_data.gui.time, str);
 
 	// request a redraw of the canvas, which will redraw everything
   gtk_widget_queue_draw(app_data.gui.canvas);
@@ -1732,24 +1747,27 @@ gboolean update_func(gpointer data) {
 
 void button_activate(GtkButton *b, gpointer data) {
 	app_data.paused = !app_data.paused;
-  if(app_data.paused) {
-    gtk_button_set_label(b, ">");
-  }
-  else {
-    gtk_button_set_label(b, "||");
-  }
-  return;
+	if(app_data.paused) {
+		GtkWidget *im = gtk_button_get_image(b);
+		gtk_image_set_from_stock(
+			(GtkImage *)im, 
+			GTK_STOCK_MEDIA_PLAY, 
+			GTK_ICON_SIZE_SMALL_TOOLBAR
+		);
+	}
+	else {
+		GtkWidget *im = gtk_button_get_image(b);
+		gtk_image_set_from_stock(
+			(GtkImage *)im, 
+			GTK_STOCK_MEDIA_PAUSE, 
+			GTK_ICON_SIZE_SMALL_TOOLBAR
+		);
+	}
+	return;
 }
 
 void slider_changed_cb(GtkRange *range, gpointer  user_data) {
 	//printf("slider changed!\n");
-}
-
-static double get_time_from_frame(frame_ptr_t pframe) {
-	assert(app_data.explicit_time);
-	input_map_t *map = app_data.input_maps[app_data.time_map_index];
-	double t = *((double *)(&pframe[map->frame_byte_offset]));
-	return t;
 }
 
 gboolean slider_changed2_cb (
@@ -1910,6 +1928,10 @@ gboolean slider_changed2_cb (
 	}
 	update_bodies();
 	gtk_widget_queue_draw(app_data.gui.canvas);
+	char str[50];
+	sprintf(str, "t=%g", app_data.time);
+	gtk_label_set_text((GtkLabel*)app_data.gui.time, str);
+
 	return TRUE;
 }
 
@@ -1924,14 +1946,26 @@ void init_gui(void) {
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
-	v_box = gtk_vbox_new(FALSE, 10);
+	v_box = gtk_vbox_new(FALSE, 1);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 
-	vcr_hbox = gtk_hbox_new(FALSE, 10);
+	app_data.gui.canvas = gtk_drawing_area_new();
+	gtk_widget_set_size_request(app_data.gui.canvas, 500,400);
+	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.canvas, TRUE, TRUE, 0);
+	g_signal_connect(app_data.gui.canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
 
-	button = gtk_button_new_with_label("||");
+	app_data.gui.drawer = draw_create(app_data.gui.canvas);
+
+	vcr_hbox = gtk_hbox_new(FALSE, 10);
+	GtkWidget *button_v_box = gtk_vbox_new(FALSE, 10);
+
+	button = gtk_button_new();
 	gtk_box_pack_start (GTK_BOX(v_box), vcr_hbox, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX(vcr_hbox), button, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX(vcr_hbox), button_v_box, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX(button_v_box), button, FALSE, FALSE, 0);
+	GtkWidget *button_image = gtk_image_new_from_stock(
+		GTK_STOCK_MEDIA_PAUSE, GTK_ICON_SIZE_SMALL_TOOLBAR);
+	gtk_button_set_image((GtkButton *)button, button_image);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
 	app_data.gui.slider = 
@@ -1940,6 +1974,7 @@ void init_gui(void) {
 			app_data.t_max, 
 			(app_data.explicit_time ? 0.05 : app_data.dt) 
 		);
+	gtk_scale_set_draw_value((GtkScale *)app_data.gui.slider, FALSE);
 	//g_signal_connect(app_data.gui.slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
 	g_signal_connect(app_data.gui.slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
 	char str[20];
@@ -1962,17 +1997,16 @@ void init_gui(void) {
 
 	gtk_range_set_value((GtkRange *)app_data.gui.slider, 0.05);
 
-  app_data.gui.canvas = gtk_drawing_area_new();
-  gtk_widget_set_size_request(app_data.gui.canvas, 500,400);
-  gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.canvas, TRUE, TRUE, 0);
-  g_signal_connect(app_data.gui.canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
+	GtkWidget *status_hbox = gtk_hbox_new(FALSE, 10);
+	gtk_box_pack_start (GTK_BOX(v_box), status_hbox, FALSE, FALSE, 0);
+	app_data.gui.playback_state = gtk_label_new("Playing...");
+	gtk_box_pack_start (GTK_BOX(status_hbox), app_data.gui.playback_state, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX(status_hbox), gtk_vseparator_new(), FALSE, FALSE, 0);
+	app_data.gui.time = gtk_label_new("t=0.0");
+	gtk_box_pack_start (GTK_BOX(status_hbox), app_data.gui.time, FALSE, FALSE, 0);
 
-	app_data.gui.drawer = draw_create(app_data.gui.canvas);
-
-  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-
-  gtk_widget_show_all (window);
-
+	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+	gtk_widget_show_all (window);
 	g_timeout_add(30, update_func, NULL);
 }
 
