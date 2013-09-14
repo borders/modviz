@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <math.h>
 
 #include <gtk/gtk.h>
 
@@ -20,7 +21,6 @@
 
 typedef struct {
 	GtkWidget *widget;
-	uint32_t color;
 	cairo_t *cr;
 } cairo_draw_t;
 
@@ -163,93 +163,87 @@ void draw_polygon_filled(void *dp, float *x, float *y, int num_points) {
 }
 
 void draw_get_text_dims(void *dp, char *text, float font_size, float *width_out, float *height_out) {
-	x_draw_t *d = (x_draw_t *)dp;
-	int direction;
-	int font_ascent;
-	int font_descent;
-	XCharStruct overall;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+   cairo_text_extents_t te;
+   cairo_save(d->cr);
+   cairo_set_font_size(d->cr, font_size);
+   cairo_text_extents(d->cr, text, &te);
+   cairo_restore(d->cr);
 
-	XFontStruct *fp = XQueryFont(d->xdisp, XGContextFromGC(d->gc));
-	XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
-	XFreeFontInfo(NULL, fp, 1);
-
-	*width_out = (float)overall.width;
-	*height_out = (float)(overall.ascent + overall.descent);
+	*width_out = (float)te.width;
+	*height_out = (float)te.height;
 }
 
 float draw_get_text_width(void *dp, char *text, float font_size) {
-	x_draw_t *d = (x_draw_t *)dp;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
 	float w,h;
 	draw_get_text_dims(d, text, font_size, &w, &h);
 	return w;
 }
 
 float draw_get_text_height(void *dp, char *text, float font_size) {
-	x_draw_t *d = (x_draw_t *)dp;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
 	float w,h;
 	draw_get_text_dims(d, text, font_size, &w, &h);
 	return h;
 }
 
 void draw_text(void *dp, char *text, float font_size, float x, float y, int anchor) {
-	x_draw_t *d = (x_draw_t *)dp;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
 
-  double x_left, y_bottom;
-  double w, h;
+	double x_left, y_bottom;
+	cairo_text_extents_t te;
+	double w, h;
 
-  int direction;
-  int font_ascent;
-  int font_descent;
-  XCharStruct overall;
-  XFontStruct *fp = XQueryFont(d->xdisp, XGContextFromGC(d->gc));
-  XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
-  XFreeFontInfo(NULL, fp, 1);
+	cairo_save(d->cr);
 
-  w = overall.width;
-  h = overall.ascent + overall.descent;
-
-  switch(anchor) {
-    case ANCHOR_TOP_LEFT:
-      x_left = x;
-      y_bottom = y + h;
-      break;
-    case ANCHOR_TOP_MIDDLE:
-      x_left = x - w/2;
-      y_bottom = y + h;
-      break;
-    case ANCHOR_TOP_RIGHT:
-      x_left = x - w;
-      y_bottom = y + h;
-      break;
-    case ANCHOR_MIDDLE_LEFT:
-      x_left = x;
-      y_bottom = y + h/2;
-      break;
-    case ANCHOR_MIDDLE_MIDDLE:
-      x_left = x - w/2;
-      y_bottom = y + h/2;
-      break;
-    case ANCHOR_MIDDLE_RIGHT:
-      x_left = x - w;
-      y_bottom = y + h/2;
-      break;
-    case ANCHOR_BOTTOM_LEFT:
-      x_left = x;
-      y_bottom = y;
-      break;
-    case ANCHOR_BOTTOM_MIDDLE:
-      x_left = x - w/2;
-      y_bottom = y;
-      break;
-    case ANCHOR_BOTTOM_RIGHT:
-      x_left = x - w;
-      y_bottom = y;
-      break;
-    default:
-      x_left = x;
-      y_bottom = y;
-  }
-	XDrawString(d->xdisp, d->xwin, d->gc, x_left, y_bottom, text, strlen(text));
+	cairo_text_extents(d->cr, text, &te);
+	w = te.width;
+	h = te.height;
+	switch(anchor) {
+		case ANCHOR_TOP_LEFT:
+			x_left = x;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_TOP_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_TOP_RIGHT:
+			x_left = x - w;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_MIDDLE_LEFT:
+			x_left = x;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_MIDDLE_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_MIDDLE_RIGHT:
+			x_left = x - w;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_BOTTOM_LEFT:
+			x_left = x;
+			y_bottom = y;
+			break;
+		case ANCHOR_BOTTOM_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y;
+			break;
+		case ANCHOR_BOTTOM_RIGHT:
+			x_left = x - w;
+			y_bottom = y;
+      	break;
+		default:
+			x_left = x;
+			y_bottom = y;
+	}
+	cairo_move_to(d->cr, x_left, y_bottom);
+	cairo_show_text(d->cr, text);
+	cairo_restore(d->cr);
 }
 
 static uint8_t color_float_to_u8(float f) {
@@ -262,24 +256,12 @@ static uint8_t color_float_to_u8(float f) {
 }
 
 void draw_set_color(void *dp, float r, float g, float b) {
-	x_draw_t *d = (x_draw_t *)dp;
-	uint8_t red   = color_float_to_u8(r);
-	uint8_t green = color_float_to_u8(g);
-	uint8_t blue  = color_float_to_u8(b);
-	uint32_t rgb = ((uint32_t)red << 16) + ((uint32_t)green << 8) + blue;
-	if(rgb != d->color) {
-		d->color = rgb;
-		XSetForeground(d->xdisp, d->gc, d->color);
-	}
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	cairo_set_source_rgb (d->cr, r, g, b);
 }
 
 void draw_set_line_width(void *dp, float w) {
-	x_draw_t *d = (x_draw_t *)dp;
-	int width = w;
-	line_attribs_t *la = &(d->line_attribs);
-	if(width != la->width) {
-		la->width = width;
-		XSetLineAttributes(d->xdisp, d->gc, la->width, la->style, CapRound, JoinMiter);
-	}
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	cairo_set_line_width(d->cr, w);
 }
 
