@@ -21,6 +21,7 @@
 typedef struct {
 	GtkWidget *widget;
 	uint32_t color;
+	cairo_t *cr;
 } cairo_draw_t;
 
 void *draw_create(void *canvas) {
@@ -38,12 +39,13 @@ void draw_destroy(void *dp) {
 
 void draw_start(void *dp) {
 	cairo_draw_t *d = (cairo_draw_t *)dp;
-	cairo_t *cr = gdk_cairo_create(d->widget->window);
+	d->cr = gdk_cairo_create(d->widget->window);
 
 }
 
 void draw_finish(void *dp) {
 	cairo_draw_t *d = (cairo_draw_t *)dp;
+	cairo_destroy(d->cr);
 }
 
 void draw_get_canvas_dims(void *dp, float *width_out, float *height_out) {
@@ -63,13 +65,16 @@ float draw_get_canvas_height(void *dp) {
 }
 
 void draw_line(void *dp, float x1, float y1, float x2, float y2) {
-	x_draw_t *d = (x_draw_t *)dp;
-	XDrawLine(d->xdisp, d->xwin, d->gc, x1, y1, x2, y2);
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+
+	cairo_move_to(d->cr, x1, y1);
+	cairo_line_to(d->cr, x2, y2);
+	cairo_stroke(d->cr);
 }
 
 
 void draw_rectangle_filled(void *dp, float x1, float y1, float x2, float y2) {
-	x_draw_t *d = (x_draw_t *)dp;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
 
 	float x_left, width;
 	float y_upper, height;
@@ -90,11 +95,12 @@ void draw_rectangle_filled(void *dp, float x1, float y1, float x2, float y2) {
 		height = y1 - y2;
 	}
 	
-	XFillRectangle(d->xdisp, d->xwin, d->gc, x_left, y_upper, width, height);
+	cairo_rectangle(d->cr, x_left, y_upper, width, height);
+	cairo_fill(d->cr);
 }
 
 void draw_rectangle_outline(void *dp, float x1, float y1, float x2, float y2) {
-	x_draw_t *d = (x_draw_t *)dp;
+	cairo_draw_t *d = (cairo_draw_t *)dp;
 
 	float x_left, width;
 	float y_upper, height;
@@ -115,42 +121,45 @@ void draw_rectangle_outline(void *dp, float x1, float y1, float x2, float y2) {
 		height = y1 - y2;
 	}
 	
-	XDrawRectangle(d->xdisp, d->xwin, d->gc, x_left, y_upper, width, height);
+	cairo_rectangle(d->cr, x_left, y_upper, width, height);
+	cairo_stroke(d->cr);
 }
 
 void draw_circle_outline(void *dp, float x_c, float y_c, float radius) {
-	x_draw_t *d = (x_draw_t *)dp;
-	XDrawArc(d->xdisp, d->xwin, d->gc, x_c - radius, y_c - radius, 2*radius, 2*radius, 0, 23040);
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	cairo_arc(d->cr, x_c, y_c, radius, 0, 2*M_PI);
+	cairo_stroke(d->cr);
 }
 
 void draw_circle_filled(void *dp, float x_c, float y_c, float radius) {
-	x_draw_t *d = (x_draw_t *)dp;
-	XFillArc(d->xdisp, d->xwin, d->gc, x_c - radius, y_c - radius, 2*radius, 2*radius, 0, 23040);
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	cairo_arc(d->cr, x_c, y_c, radius, 0, 2*M_PI);
+	cairo_fill(d->cr);
 }
 
 #define MAX_POLYGON_POINTS 2000
 void draw_polygon_outline(void *dp, float *x, float *y, int num_points) {
-	x_draw_t *d = (x_draw_t *)dp;
-	static XPoint points[MAX_POLYGON_POINTS];
-	assert(num_points <= MAX_POLYGON_POINTS);
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	assert(num_points > 1);
+
 	int i;
-	for(i=0; i < num_points; i++) {
-		points[i].x = x[i];
-		points[i].y = y[i];
+	cairo_move_to(d->cr, x[0], y[0]);
+	for(i=1; i < num_points; i++) {
+		cairo_line_to(d->cr, x[i], y[i]);
 	}
-	XDrawLines(d->xdisp, d->xwin, d->gc, points, num_points, CoordModeOrigin);
+	cairo_stroke(d->cr);
 }
 
 void draw_polygon_filled(void *dp, float *x, float *y, int num_points) {
-	x_draw_t *d = (x_draw_t *)dp;
-	static XPoint points[MAX_POLYGON_POINTS];
-	assert(num_points <= MAX_POLYGON_POINTS);
+	cairo_draw_t *d = (cairo_draw_t *)dp;
+	assert(num_points > 1);
+
 	int i;
-	for(i=0; i < num_points; i++) {
-		points[i].x = x[i];
-		points[i].y = y[i];
+	cairo_move_to(d->cr, x[0], y[0]);
+	for(i=1; i < num_points; i++) {
+		cairo_line_to(d->cr, x[i], y[i]);
 	}
-	XFillPolygon(d->xdisp, d->xwin, d->gc, points, num_points, Nonconvex, CoordModeOrigin);
+	cairo_fill(d->cr);
 }
 
 void draw_get_text_dims(void *dp, char *text, float font_size, float *width_out, float *height_out) {
