@@ -31,25 +31,25 @@
 #define PRINT_ERRORS 1
 
 #if PRINT_DEBUG
-	#define DEBUG(...) printf("DEBUG: " __VA_ARGS__)
+	#define DEBUG(...) printf(__VA_ARGS__)
 #else
 	#define DEBUG(...) 
 #endif
 
 #if PRINT_DEBUG2
-	#define DEBUG2(...) printf("DEBUG2: " __VA_ARGS__)
+	#define DEBUG2(...) printf(__VA_ARGS__)
 #else
 	#define DEBUG2(...) 
 #endif
 
 #if PRINT_WARNINGS
-	#define WARNING(...) fprintf(stderr, "* WARNING: " __VA_ARGS__)
+	#define WARNING(...) fprintf(stdout, __VA_ARGS__)
 #else
 	#define WARNING(...) 
 #endif
 
 #if PRINT_ERRORS
-	#define ERROR(...) fprintf(stderr, "*** ERROR: " __VA_ARGS__)
+	#define ERROR(...) fprintf(stderr, __VA_ARGS__)
 #else
 	#define ERROR(...) 
 #endif
@@ -72,11 +72,13 @@ static color_t COLOR_RED   = {1.0, 0.0, 0.0};
 static color_t COLOR_GREEN = {0.0, 1.0, 0.0};
 static color_t COLOR_BLUE  = {0.0, 0.0, 1.0};
 
-typedef struct {
+typedef struct _body_t {
 	body_type_enum type;
 	double x;
 	double y;
 	double theta;
+	struct _body_t *xy_parent;
+	struct _body_t *theta_parent;
 
 	double x_offset;
 	double y_offset;
@@ -261,6 +263,8 @@ int body_init(body_t *self, body_type_enum type) {
 	self->x = 0.0;
 	self->y = 0.0;
 	self->theta = 0.0;
+	self->xy_parent = NULL;
+	self->theta_parent = NULL;
 
 	self->x_offset = 0.0;
 	self->y_offset = 0.0;
@@ -1052,9 +1056,34 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 		body->id = body_auto_id();
 		DEBUG("Using automatic body id: %d\n", body->id);
 	}
+
 	char name[20];
 	sprintf(name, "body_%03d", body->id);
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
+
+	int i;
+	error = error || parse_attrib_to_int(xml, &i, "xy_parent_id", false, 0);
+	if(i != 0) {
+		body_t *b = lookup_body_by_id(i);
+		if(b == NULL) {
+			ERROR("Coudn't find x-y parent body with id %d\n", i);
+			error = 1;
+		} else {
+			body->xy_parent = b;
+		}
+	}
+
+	error = error || parse_attrib_to_int(xml, &i, "theta_parent_id", false, 0);
+	if(i != 0) {
+		body_t *b = lookup_body_by_id(i);
+		if(b == NULL) {
+			ERROR("Coudn't find theta parent body with id %d\n", i);
+			error = 1;
+		} else {
+			body->theta_parent = b;
+		}
+	}
+
 	error = error || parse_attrib_to_bool(xml, &body->show_shape_frame, "show_shape_frame", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_body_frame, "show_body_frame", false, false);
 	error = error || parse_attrib_to_bool(xml, &body->show_name, "show_name", false, false);
