@@ -106,7 +106,7 @@ typedef struct {
 	double *node_x;
 	double *node_y;
 	bool node_owner;
-} custom_t;
+} polygon_t;
 
 typedef enum {
 	CONN_TYPE_LINE,
@@ -283,7 +283,7 @@ ball_t *ball_alloc(void) {
 	return ball;
 }
 
-void custom_dealloc(custom_t *self) {
+void polygon_dealloc(polygon_t *self) {
 	if(self) {
 		free(self);
 	}
@@ -325,14 +325,14 @@ int block_init(block_t *self) {
 	return 0;
 }
 
-custom_t *custom_alloc(void) {
-	custom_t *cust;
-	cust = malloc(sizeof(custom_t));
-	if(cust == NULL) {
-		fprintf(stderr, "Error allocating custom_t!\n");
+polygon_t *polygon_alloc(void) {
+	polygon_t *poly;
+	poly = malloc(sizeof(polygon_t));
+	if(poly == NULL) {
+		fprintf(stderr, "Error allocating polygon_t!\n");
 		exit(-1);
 	}
-	return cust;
+	return poly;
 }
 
 void connector_dealloc(connector_t *self) {
@@ -388,7 +388,7 @@ int connector_init(connector_t *self) {
 	return 0;
 }
 
-int custom_init(custom_t *self) 
+int polygon_init(polygon_t *self) 
 {
 	body_init((body_t *)self, BODY_TYPE_CUSTOM);
 	self->node_count = 0;
@@ -416,7 +416,7 @@ static int body_auto_id(void)
 	}
 }
 
-int custom_set_nodes(custom_t *self, int node_count, double *x, double *y, bool copy) {
+int polygon_set_nodes(polygon_t *self, int node_count, double *x, double *y, bool copy) {
 	if(self->node_owner) {
 		if(self->node_x != NULL) {
 			free(self->node_x);
@@ -1089,10 +1089,10 @@ int parse_block_xml(xmlNode *xml, block_t *block) {
 	return 0;
 }
 
-int parse_custom_xml(xmlNode *xml, custom_t *custom) {
+int parse_polygon_xml(xmlNode *xml, polygon_t *polygon) {
 	int error = 0;
 
-	error = error || parse_body_xml(xml, (body_t *)custom);
+	error = error || parse_body_xml(xml, (body_t *)polygon);
 	int node_count = 0;
 	xmlNode *xnode;
 	// first, loop through children, and count up number of <node> elements
@@ -1103,15 +1103,15 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 	}
 
 	if(node_count < 2) {
-		ERROR("Error: only found %d (x,y) nodes in custom element. Must specify at least 2\n", node_count);
+		ERROR("Error: only found %d (x,y) nodes in polygon element. Must specify at least 2\n", node_count);
 		return -1;
 	}
 
 	// allocated memory for the (x,y) node data
-	custom->node_x = malloc(node_count * sizeof(double));
-	custom->node_y = malloc(node_count * sizeof(double));
-	custom->node_owner = true;
-	custom->node_count = node_count;
+	polygon->node_x = malloc(node_count * sizeof(double));
+	polygon->node_y = malloc(node_count * sizeof(double));
+	polygon->node_owner = true;
+	polygon->node_count = node_count;
 
 	// now loop through children again, this time parsing the (x,y) elmnts into arrays
 	node_count = 0;
@@ -1119,24 +1119,24 @@ int parse_custom_xml(xmlNode *xml, custom_t *custom) {
 	for(xnode = xml->children; xnode != NULL; xnode = xnode->next) {
 		if(xnode->type == XML_ELEMENT_NODE && !strcmp(xnode->name, "node") ) {
 			err = 0;
-			err = err || parse_attrib_to_double(xnode, &(custom->node_x[node_count]), "x", true, 0.);
-			err = err || parse_attrib_to_double(xnode, &(custom->node_y[node_count]), "y", true, 0.);
+			err = err || parse_attrib_to_double(xnode, &(polygon->node_x[node_count]), "x", true, 0.);
+			err = err || parse_attrib_to_double(xnode, &(polygon->node_y[node_count]), "y", true, 0.);
 			if(err) {
-				ERROR("Error parsing custom body's x,y node\n");
+				ERROR("Error parsing polygon body's x,y node\n");
 				break;
 			}
 			node_count++;
 		}
 	}
 	if(err) {
-		free(custom->node_x);
-		free(custom->node_y);
-		custom->node_owner = false;
+		free(polygon->node_x);
+		free(polygon->node_y);
+		polygon->node_owner = false;
 		error = 1;
 	}
 
 	if(error) {
-		ERROR("Error parsing custom XML\n");
+		ERROR("Error parsing polygon XML\n");
 		return -1;
 	}
 	return 0;
@@ -1209,17 +1209,17 @@ int parse_config_xml(xmlNode *xml) {
 			}
 			app_data.bodies[app_data.num_bodies++] = (body_t *)block;
 		}
-		else if(!strcmp(curNode->name, "custom")) {
+		else if(!strcmp(curNode->name, "polygon")) {
 			DIE_IF_TOO_MANY_BODIES();
-			DEBUG("Got <custom> element!\n");
-			custom_t *cust = custom_alloc();
-			custom_init(cust);
-			if(parse_custom_xml(curNode, cust)) {
-				ERROR("*** Error parsing \"custom\" XML into custom_t struct!\n");
-				custom_dealloc(cust);
+			DEBUG("Got <polygon> element!\n");
+			polygon_t *poly = polygon_alloc();
+			polygon_init(poly);
+			if(parse_polygon_xml(curNode, poly)) {
+				ERROR("*** Error parsing \"polygon\" XML into polygon_t struct!\n");
+				polygon_dealloc(poly);
 				continue;
 			}
-			app_data.bodies[app_data.num_bodies++] = (body_t *)cust;
+			app_data.bodies[app_data.num_bodies++] = (body_t *)poly;
 		}
 		else if(!strcmp(curNode->name, "connector")) {
 			DIE_IF_TOO_MANY_CONNECTORS();
@@ -1530,23 +1530,23 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			break;
 		}
 		case BODY_TYPE_CUSTOM: {
-			custom_t *cust = (custom_t *)body;
+			polygon_t *poly = (polygon_t *)body;
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
-			float *x = malloc(cust->node_count * sizeof(float));
-			float *y = malloc(cust->node_count * sizeof(float));
+			float *x = malloc(poly->node_count * sizeof(float));
+			float *y = malloc(poly->node_count * sizeof(float));
 			assert(x && y);
 
 			int i;
-			for(i=0; i<cust->node_count; i++) {
-				body_transform_point_shape2ground(body, cust->node_x[i], cust->node_y[i], &x[i], &y[i]);
+			for(i=0; i<poly->node_count; i++) {
+				body_transform_point_shape2ground(body, poly->node_x[i], poly->node_y[i], &x[i], &y[i]);
 				x[i] = X_USER_TO_PX(x[i]);
 				y[i] = Y_USER_TO_PX(y[i]);
 			}
 			if(body->filled) 
-				draw_polygon_filled(dp, x, y, cust->node_count);
+				draw_polygon_filled(dp, x, y, poly->node_count);
 			else {
 				draw_set_line_width(dp, body->line_width);
-				draw_polygon_outline(dp, x, y, cust->node_count);
+				draw_polygon_outline(dp, x, y, poly->node_count);
 			}
 
 			free(x);

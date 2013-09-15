@@ -26,16 +26,16 @@
 	<ball name="cart_wheel_left" id="11" color="blue" radius="0.75" x="0" y="0" x_offset="-1.4" y_offset="-1.5" theta="0.0" />
 	<ball name="cart_wheel_right" id="12" color="blue" radius="0.75" x="0" y="0" x_offset="1.4" y_offset="-1.5" theta="0.0" />
 
-	<custom id="4" name="crank" x="-6.0" y="-5.0" theta="0.1" filled="false" line_width="2" >
+	<polygon id="4" name="crank" x="-6.0" y="-5.0" theta="0.1" filled="false" line_width="2" >
 		<node x="0.0" y="0.0" />
 		<node x="3.0" y="0.0" />
 		<node x="3.0" y="2.0" />
 		<node x="1.0" y="4.0" />
 		<node x="0.0" y="0.0" />
-	</custom>
+	</polygon>
 
 <!--
-	<custom 
+	<polygon 
 		id="5"
 		name="hex" 
 		x="-5.0" 
@@ -45,7 +45,7 @@
 		<node x="0.0" y="0.0" />
 		<node x="3.0" y="0.0" />
 		<node x="3.0" y="2.0" />
-	</custom>
+	</polygon>
 -->
 
 	<connector name="spring_1" id="666" type="spring">
