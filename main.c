@@ -50,7 +50,7 @@
 typedef enum {
 	BODY_TYPE_BALL,
 	BODY_TYPE_BLOCK,
-	BODY_TYPE_CUSTOM
+	BODY_TYPE_POLYGON
 } body_type_enum;
 
 typedef struct {
@@ -390,7 +390,7 @@ int connector_init(connector_t *self) {
 
 int polygon_init(polygon_t *self) 
 {
-	body_init((body_t *)self, BODY_TYPE_CUSTOM);
+	body_init((body_t *)self, BODY_TYPE_POLYGON);
 	self->node_count = 0;
 	self->node_x = NULL;
 	self->node_y = NULL;
@@ -1529,7 +1529,7 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			}
 			break;
 		}
-		case BODY_TYPE_CUSTOM: {
+		case BODY_TYPE_POLYGON: {
 			polygon_t *poly = (polygon_t *)body;
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float *x = malloc(poly->node_count * sizeof(float));
