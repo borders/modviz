@@ -27,22 +27,29 @@
 
 #define PRINT_DEBUG 1
 #define PRINT_DEBUG2 1
+#define PRINT_WARNINGS 1
 #define PRINT_ERRORS 1
 
 #if PRINT_DEBUG
-	#define DEBUG(...) printf(__VA_ARGS__)
+	#define DEBUG(...) printf("DEBUG: " __VA_ARGS__)
 #else
 	#define DEBUG(...) 
 #endif
 
 #if PRINT_DEBUG2
-	#define DEBUG2(...) printf(__VA_ARGS__)
+	#define DEBUG2(...) printf("DEBUG2: " __VA_ARGS__)
 #else
 	#define DEBUG2(...) 
 #endif
 
+#if PRINT_WARNINGS
+	#define WARNING(...) fprintf(stderr, "* WARNING: " __VA_ARGS__)
+#else
+	#define WARNING(...) 
+#endif
+
 #if PRINT_ERRORS
-	#define ERROR(...) fprintf(stderr, __VA_ARGS__)
+	#define ERROR(...) fprintf(stderr, "*** ERROR: " __VA_ARGS__)
 #else
 	#define ERROR(...) 
 #endif
@@ -402,7 +409,7 @@ static int body_auto_id(void)
 {
 	int i;
 	int id;
-	for(id=0; ; id++) {
+	for(id=1; ; id++) {
 		bool used = false;
 		for(i=0; i<app_data.num_bodies; i++) {
 			if(app_data.bodies[i]->id == id) {
@@ -1040,6 +1047,11 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	int error = 0;
 
 	error = error || parse_attrib_to_int(xml, &body->id, "id", false, body_auto_id());
+	if(body->id == 0) {
+		ERROR("0 is not an allowable ID value (it's reserved for ground)!\n");
+		body->id = body_auto_id();
+		DEBUG("Using automatic body id: %d\n", body->id);
+	}
 	char name[20];
 	sprintf(name, "body_%03d", body->id);
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
