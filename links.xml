@@ -1,0 +1,35 @@
+<modviz_config x_min="-10" x_max="20" y_min="-2" y_max="+15" >
+
+	<block 
+		id="1" 
+		name="block_1" 
+		width="10" 
+		height="1" 
+		x="0.0" 
+		y="0.0" 
+		theta="0.0" 
+		phi="0.0" 
+		x_offset="5"
+		color="red"
+	/>
+
+	<block 
+		id="2" 
+		name="block_2" 
+		width="10" 
+		height="1" 
+		xy_parent_id="1"
+		theta_parent_id="0"
+		x="10.0" 
+		y="0.0" 
+		theta="0.0" 
+		phi="0.0" 
+		x_offset="5"
+		color="blue"
+	/>
+	<input_format>
+		<map column="1" type="time" />
+		<map column="2" type="body" id="1" field="theta" />
+	</input_format>
+
+</modviz_config>
