@@ -1754,14 +1754,25 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all the connectors ************************************************
 	for(i=0; i < app_data.num_connectors; i++) {
 		connector_t *connect = app_data.connectors[i];
+		#if NEW_TRANSFORMS
+			transform_t trans_1, trans_2;
+			body_transform_shape_to_ground(connect->body_1, &trans_1);
+			body_transform_shape_to_ground(connect->body_2, &trans_2);
+		#endif
 		switch(connect->type) {
 			case CONN_TYPE_SPRING:
 				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
 				draw_set_line_width(dp, connect->thickness);
-
-				float x1, y1, x2, y2;
-				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
-				body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
+			
+				#if NEW_TRANSFORMS
+					double x1, x2, y1, y2;
+					transform_point(&trans_1, connect->x1, connect->y1, &x1, &y1);
+					transform_point(&trans_2, connect->x2, connect->y2, &x2, &y2);
+				#else
+					float x1, y1, x2, y2;
+					body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
+					body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
+				#endif
 
 				float dx = x2 - x1;
 				float dy = y2 - y1;
@@ -1784,9 +1795,15 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case CONN_TYPE_LINE: {
 				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
 				draw_set_line_width(dp, connect->thickness);
-				float x1, y1, x2, y2;
-				body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
-				body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
+				#if NEW_TRANSFORMS
+					double x1, y1, x2, y2;
+					transform_point(&trans_1, connect->x1, connect->y1, &x1, &y1);
+					transform_point(&trans_2, connect->x2, connect->y2, &x2, &y2);
+				#else
+					float x1, y1, x2, y2;
+					body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
+					body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
+				#endif
 				draw_line ( dp,
 					X_USER_TO_PX(x1), Y_USER_TO_PX(y1),
 					X_USER_TO_PX(x2), Y_USER_TO_PX(y2)
