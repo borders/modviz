@@ -1,0 +1,49 @@
+<modviz_config x_min="-0.006" x_max="+0.006" y_min="-0.015" y_max="+0.025" >
+
+	<block 
+		id="2" 
+		name="block" 
+		width="0.02" 
+		height="0.01" 
+		x="0.0" 
+		y="0.0" 
+		theta="0.0" 
+		phi="0.0" 
+	/>
+
+	<ground name="right side rail" type="hash" x1="0.011" y1="-0.01" x2="0.011" y2="0.01" />
+	<ground name="left side rail"	type="hash" x1="-0.011" y1="0.01" x2="-0.011" y2="-0.01" />
+	<ball id="99" x="0" y="0.02" radius="0" />
+	<ground name="ceiling" type="hash" x1="0.01" y1="0.02" x2="-0.01" y2="0.02" />
+
+	<ball
+		id="1"
+		xy_parent_id="2"
+		name="eccentric mass"
+		radius="0.001"
+		x="0.0"
+		y="0.0"
+		theta="0.0"
+		x_offset="0.0"
+		y_offset="-0.002"
+		filled="true"
+		color="red"
+	/>
+
+	<connector type="spring" name="spring" id="500">
+		<attach id="99" x="0" y="0" />
+		<attach id="2" x="0" y="0.005" />
+	</connector>
+
+	<connector type="line" line_width="3" color="blue" id="501">
+		<attach id="1" x="0" y="0" />
+		<attach id="1" x="0" y="0.002" />
+	</connector>
+
+	<input_format>
+		<map column="1" type="time" />
+		<map column="2" type="body" id="1" field="theta" />
+		<map column="4" type="body" id="2" field="y" />
+	</input_format>
+
+</modviz_config>

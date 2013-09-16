@@ -97,6 +97,52 @@ typedef struct _body_t {
 	color_t color;
 } body_t;
 
+typedef struct _transform_t {
+	double x_offset;
+	double y_offset;
+	double A[2][2];
+} transform_t;
+
+void transform_point(transform_t *t, double x, double y, double *x_out, double *y_out) {
+	*x_out = t->x_offset + t->A[0][0] * x + t->A[0][1] * y;
+	*y_out = t->y_offset + t->A[1][0] * x + t->A[1][1] * y;
+}
+
+void transform_make(transform_t *t, double x_offset, double y_offset, double theta) {
+	double c,s;
+	t->x_offset = x_offset;
+	t->y_offset = y_offset;
+	c = cos(theta);
+	s = sin(theta);
+	t->A[0][0] = +c;
+	t->A[0][1] = -s;
+	t->A[1][0] = +s;
+	t->A[1][1] = +c;
+} 
+
+void transform_append(transform_t *t, transform_t *new) {
+	double x_offset, y_offset;
+	x_offset = new->x_offset + new->A[0][0] * t->x_offset + new->A[0][1] * t->y_offset;
+	y_offset = new->y_offset + new->A[1][0] * t->x_offset + new->A[1][1] * t->y_offset;
+
+	// The above 2 lines should be equivalent to the following line...
+	//transform_point(new, t->x_offset, t->y_offset, &x_offset, &y_offset);
+
+	t->x_offset = x_offset;
+	t->y_offset = y_offset;
+
+	double A[2][2];
+	A[0][0] = new->A[0][0] * t->A[0][0] + new->A[0][1] * t->A[1][0];
+	A[0][1] = new->A[0][0] * t->A[0][1] + new->A[0][1] * t->A[1][1];
+	A[1][0] = new->A[1][0] * t->A[0][0] + new->A[1][1] * t->A[1][0];
+	A[1][1] = new->A[1][0] * t->A[0][1] + new->A[1][1] * t->A[1][1];
+
+	t->A[0][0] = A[0][0];
+	t->A[1][0] = A[1][0];
+	t->A[0][1] = A[0][1];
+	t->A[1][1] = A[1][1];
+}
+
 typedef struct {
 	body_t body;
 	double radius;
@@ -1428,6 +1474,40 @@ static void body_transform_points_body2ground(
 	}
 }
 
+static double body_theta_to_ground(body_t *body) {
+	body_t *b;
+	double theta = body->theta;
+	for(b=body; b->theta_parent != NULL; b=b->theta_parent) {
+		theta += b->theta_parent->theta;
+	}
+	return theta;
+}
+
+
+static void body_transform_shape_to_ground(body_t *body, transform_t *t_out) {
+	transform_t T;
+
+	// first step is transform from shape frame to body frame
+	transform_make(&T, body->x_offset, body->y_offset, body->phi);
+
+	body_t *b;
+	for(b=body; b != NULL; b = b->xy_parent) {
+		double qpar_theta = 0.0;
+		if(b->theta_parent != NULL) {
+			qpar_theta = body_theta_to_ground(b->theta_parent);
+		}
+		double xypar_theta = 0.0;
+		if(b->xy_parent != NULL) {
+			xypar_theta = body_theta_to_ground(b->xy_parent);
+		}
+		transform_t t_new;
+		transform_make(&t_new, b->x, b->y, b->theta + qpar_theta - xypar_theta);
+		transform_append(&T, &t_new);
+	}
+
+	*t_out = T;
+}
+
 static void body_transform_point_shape2ground(
 		body_t *body,
 		float x_s, float y_s,
@@ -1537,10 +1617,16 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		case BODY_TYPE_BALL: {
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float r = ((ball_t *)body)->radius;
+#if 0
 			float x_c, y_c;
 			body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
-			float x_r, y_r;
-			body_transform_point_shape2ground(body, r, 0.0, &x_r, &y_r);
+#else
+			double x_c, y_c;
+			transform_t trans;
+			body_transform_shape_to_ground(body, &trans);
+			transform_point(&trans, 0.0, 0.0, &x_c, &y_c);
+#endif
+
 			if(body->filled) 
 				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
 			else {

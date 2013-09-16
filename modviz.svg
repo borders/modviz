@@ -81,9 +81,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.70710678"
-     inkscape:cx="738.22733"
-     inkscape:cy="487.19291"
+     inkscape:zoom="1"
+     inkscape:cx="2058.0359"
+     inkscape:cy="616.73054"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -99,7 +99,7 @@
      inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="1"
-     inkscape:snap-global="true"
+     inkscape:snap-global="false"
      inkscape:snap-intersection-paths="true">
     <sodipodi:guide
        orientation="1,0"
@@ -620,7 +620,7 @@
        sodipodi:open="true"
        sodipodi:end="6.289964"
        sodipodi:start="5.7912601"
-       d="m 468.86516,600.05595 a 45.714287,45.714287 0 0 1 5.41952,21.90182"
+       d="m 468.86516,600.05595 c 3.60805,6.73313 5.4713,14.26308 5.41952,21.90182"
        sodipodi:ry="45.714287"
        sodipodi:rx="45.714287"
        sodipodi:cy="621.64789"
@@ -633,7 +633,7 @@
        sodipodi:open="true"
        sodipodi:end="5.7630293"
        sodipodi:start="5.260018"
-       d="m 452.37325,582.61879 a 45.714287,45.714287 0 0 1 15.86638,16.30839"
+       d="m 452.37325,582.61879 c 6.57874,4.01203 12.03658,9.62192 15.86638,16.30839"
        sodipodi:ry="45.714287"
        sodipodi:rx="45.714287"
        sodipodi:cy="621.64789"
@@ -696,19 +696,15 @@
     <text
        xml:space="preserve"
        style="font-size:9.53780842px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       x="1078.1558"
-       y="740.90942"
+       x="1077.0511"
+       y="748.89563"
        id="text3086"
        sodipodi:linespacing="125%"
        transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,0,0)"><tspan
-         sodipodi:role="line"
-         id="tspan3088"
-         x="1078.1558"
-         y="740.90942">body.theta + </tspan><tspan
          id="tspan3090"
          sodipodi:role="line"
-         x="1078.1558"
-         y="752.83167">body.theta_offset</tspan></text>
+         x="1077.0511"
+         y="748.89563">body.theta</tspan></text>
     <text
        sodipodi:linespacing="125%"
        id="text3092"
@@ -749,7 +745,7 @@
        sodipodi:open="true"
        sodipodi:end="12.390833"
        sodipodi:start="6.2099473"
-       d="m 194.0738,464.54947 a 10.076272,10.076272 0 1 1 -0.12784,-1.02239"
+       d="m 194.0738,464.54947 c 0.4072,5.55005 -3.7619,10.37936 -9.31196,10.78656 -5.55005,0.40721 -10.37936,-3.7619 -10.78656,-9.31195 -0.40721,-5.55005 3.7619,-10.37936 9.31195,-10.78657 5.1527,-0.37805 9.75646,3.20241 10.65873,8.28957"
        sodipodi:ry="10.076272"
        sodipodi:rx="10.076272"
        sodipodi:cy="465.28677"
@@ -765,7 +761,7 @@
        sodipodi:cy="465.28677"
        sodipodi:rx="10.076272"
        sodipodi:ry="10.076272"
-       d="m 194.0738,464.54947 a 10.076272,10.076272 0 1 1 -0.12784,-1.02239"
+       d="m 194.0738,464.54947 c 0.4072,5.55005 -3.7619,10.37936 -9.31196,10.78656 -5.55005,0.40721 -10.37936,-3.7619 -10.78656,-9.31195 -0.40721,-5.55005 3.7619,-10.37936 9.31195,-10.78657 5.1527,-0.37805 9.75646,3.20241 10.65873,8.28957"
        sodipodi:start="6.2099473"
        sodipodi:end="12.390833"
        sodipodi:open="true"
@@ -814,7 +810,7 @@
        sodipodi:cy="465.28677"
        sodipodi:rx="10.076272"
        sodipodi:ry="10.076272"
-       d="m 194.0738,464.54947 a 10.076272,10.076272 0 1 1 -0.12784,-1.02239"
+       d="m 194.0738,464.54947 c 0.4072,5.55005 -3.7619,10.37936 -9.31196,10.78656 -5.55005,0.40721 -10.37936,-3.7619 -10.78656,-9.31195 -0.40721,-5.55005 3.7619,-10.37936 9.31195,-10.78657 5.1527,-0.37805 9.75646,3.20241 10.65873,8.28957"
        sodipodi:start="6.2099473"
        sodipodi:end="12.390833"
        sodipodi:open="true"
@@ -824,7 +820,7 @@
        sodipodi:open="true"
        sodipodi:end="12.390833"
        sodipodi:start="6.2099473"
-       d="m 194.0738,464.54947 a 10.076272,10.076272 0 1 1 -0.12784,-1.02239"
+       d="m 194.0738,464.54947 c 0.4072,5.55005 -3.7619,10.37936 -9.31196,10.78656 -5.55005,0.40721 -10.37936,-3.7619 -10.78656,-9.31195 -0.40721,-5.55005 3.7619,-10.37936 9.31195,-10.78657 5.1527,-0.37805 9.75646,3.20241 10.65873,8.28957"
        sodipodi:ry="10.076272"
        sodipodi:rx="10.076272"
        sodipodi:cy="465.28677"
@@ -934,7 +930,7 @@
            sodipodi:role="line"
            id="tspan3176"
            x="798.68127"
-           y="570.88733">qpq</tspan></text>
+           y="570.88733">qpar.theta</tspan></text>
     </g>
     <text
        xml:space="preserve"
@@ -969,7 +965,7 @@
        sodipodi:open="true"
        sodipodi:end="6.289964"
        sodipodi:start="6.0347243"
-       d="m 472.88194,610.40617 a 45.714287,45.714287 0 0 1 1.40274,11.5516"
+       d="m 472.88194,610.40617 c 0.95774,3.77506 1.42914,7.65703 1.40274,11.5516"
        sodipodi:ry="45.714287"
        sodipodi:rx="45.714287"
        sodipodi:cy="621.64789"
@@ -987,7 +983,7 @@
          sodipodi:role="line"
          id="tspan3340"
          x="1124.1813"
-         y="661.13733">xypq</tspan></text>
+         y="661.13733">xypar.theta</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:1, 2;stroke-dashoffset:0"
        d="M 1202.2913,145.40207 1187.6501,90.760404"
@@ -1082,7 +1078,7 @@
          sodipodi:role="line"
          id="tspan4784"
          x="410"
-         y="1064"></tspan><tspan
+         y="1064" /><tspan
          sodipodi:role="line"
          id="tspan4786"
          x="410"
@@ -1114,5 +1110,105 @@
          x="76.310204"
          sodipodi:role="line"
          id="tspan4833">    - y_i * sin(theta + theta_offset + body.phi) </tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3157"
+       y="293.08517"
+       x="1425.7703"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       xml:space="preserve"><tspan
+         y="293.08517"
+         x="1425.7703"
+         sodipodi:role="line"
+         id="tspan3167">x_i_b = body.x_offset + x_i * cos(body.phi) - y_i * sin(body.phi)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       x="1425.7703"
+       y="313.08517"
+       id="text3180"
+       sodipodi:linespacing="125%"><tspan
+         id="tspan3182"
+         sodipodi:role="line"
+         x="1425.7703"
+         y="313.08517">y_i_b = body.y_offset + y_i * cos(body.phi) + x_i * sin(body.phi)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       x="1425.7703"
+       y="373.08517"
+       id="text3184"
+       sodipodi:linespacing="125%"><tspan
+         id="tspan3186"
+         sodipodi:role="line"
+         x="1425.7703"
+         y="373.08517">x_i_p = body.x + x_i_b * cos(body.theta + body.qpar.theta - body.xypar.theta) - y_i_b * sin(body.theta + body.qpar.theta - body.xypar.theta)</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3188"
+       y="393.08517"
+       x="1425.7703"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       xml:space="preserve"><tspan
+         y="393.08517"
+         x="1425.7703"
+         sodipodi:role="line"
+         id="tspan3190">y_i_p = body.y + y_i_b * cos(body.theta + body.qpar.theta - body.xypar.theta) + x_i_b * sin(body.theta + body.qpar.theta - body.xypar.theta)</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3194"
+       y="453.08517"
+       x="1425.7703"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       xml:space="preserve"><tspan
+         y="453.08517"
+         x="1425.7703"
+         sodipodi:role="line"
+         id="tspan3196">x_i_pp = body.xypar.x + x_i_p * cos(body.xypar.theta + body.xypar.qpar.theta - body.xypar.xypar.theta) - y_i_p * sin(body.xypar.theta + body.xypar.qpar.theta - body.xypar.xypar.theta)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       x="1425.7703"
+       y="473.08517"
+       id="text3198"
+       sodipodi:linespacing="125%"><tspan
+         id="tspan3200"
+         sodipodi:role="line"
+         x="1425.7703"
+         y="473.08517">y_i_pp = body.xypar.y + y_i_p * cos(body.xypar.theta + body.xypar.qpar.theta - body.xypar.xypar.theta) + x_i_p * sin(body.xypar.theta + body.xypar.qpar.theta - body.xypar.xypar.theta)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="1635"
+       y="427"
+       id="text3202"
+       sodipodi:linespacing="125%"
+       transform="translate(0,62.362265)"><tspan
+         sodipodi:role="line"
+         id="tspan3204"
+         x="1635"
+         y="427" /></text>
+    <text
+       xml:space="preserve"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       x="1425.7703"
+       y="535.08521"
+       id="text3206"
+       sodipodi:linespacing="125%"><tspan
+         id="tspan3208"
+         sodipodi:role="line"
+         x="1425.7703"
+         y="535.08521">x_i_gnd = xypar.x + x_i_p * cos(xypar.theta + xypar.qpar.theta - xypar.xypar.theta) - y_i_p * sin(xypar.theta + xypar.qpar.theta - xypar.xypar.theta)</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3210"
+       y="555.08521"
+       x="1425.7703"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;font-family:Courier New;-inkscape-font-specification:Courier New"
+       xml:space="preserve"><tspan
+         y="555.08521"
+         x="1425.7703"
+         sodipodi:role="line"
+         id="tspan3212">y_i_pp = xypar.y + y_i_p * cos(xypar.theta + xypar.qpar.theta - xypar.xypar.theta) + x_i_p * sin(xypar.theta + xypar.qpar.theta - xypar.xypar.theta)</tspan></text>
   </g>
 </svg>
