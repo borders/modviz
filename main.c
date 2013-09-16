@@ -30,6 +30,8 @@
 #define PRINT_WARNINGS 1
 #define PRINT_ERRORS 1
 
+#define NEW_TRANSFORMS 1
+
 #if PRINT_DEBUG
 	#define DEBUG(...) printf(__VA_ARGS__)
 #else
@@ -106,6 +108,16 @@ typedef struct _transform_t {
 void transform_point(transform_t *t, double x, double y, double *x_out, double *y_out) {
 	*x_out = t->x_offset + t->A[0][0] * x + t->A[0][1] * y;
 	*y_out = t->y_offset + t->A[1][0] * x + t->A[1][1] * y;
+}
+
+void transform_points(transform_t *t, int count, double *x, double *y, double *x_out, double *y_out) {
+	int i;
+	for(i=0; i<count; i++) {
+		double tmp_x, tmp_y;
+		transform_point(t, x[i], y[i], &tmp_x, &tmp_y);
+		x_out[i] = tmp_x;
+		y_out[i] = tmp_y;
+	}
 }
 
 void transform_make(transform_t *t, double x_offset, double y_offset, double theta) {
@@ -1611,21 +1623,21 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all bodies *************************************************
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
-		float sin_ = sin(body->theta + body->theta_offset);
-		float cos_ = cos(body->theta + body->theta_offset);
+		#if NEW_TRANSFORMS
+			transform_t trans;
+			body_transform_shape_to_ground(body, &trans);
+		#endif
 		switch(body->type) {
 		case BODY_TYPE_BALL: {
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float r = ((ball_t *)body)->radius;
-#if 0
-			float x_c, y_c;
-			body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
-#else
-			double x_c, y_c;
-			transform_t trans;
-			body_transform_shape_to_ground(body, &trans);
-			transform_point(&trans, 0.0, 0.0, &x_c, &y_c);
-#endif
+			#if !NEW_TRANSFORMS
+				float x_c, y_c;
+				body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
+			#else
+				double x_c, y_c;
+				transform_point(&trans, 0.0, 0.0, &x_c, &y_c);
+			#endif
 
 			if(body->filled) 
 				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
@@ -1640,19 +1652,26 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float w_2 = block->width/2.0;
 			float h_2 = block->height/2.0;
-			float x[4] = {-w_2, +w_2, +w_2, -w_2};
-			float y[4] = {-h_2, -h_2, +h_2, +h_2};
-			body_transform_points_shape2ground(body, 4, x, y, x, y);
+			#if !NEW_TRANSFORMS
+				float x[4] = {-w_2, +w_2, +w_2, -w_2};
+				float y[4] = {-h_2, -h_2, +h_2, +h_2};
+				body_transform_points_shape2ground(body, 4, x, y, x, y);
+			#else
+				double x[4] = {-w_2, +w_2, +w_2, -w_2};
+				double y[4] = {-h_2, -h_2, +h_2, +h_2};
+				transform_points(&trans, 4, x, y, x, y);
+			#endif
 			int i;
+			float x_px[4], y_px[4];
 			for(i=0; i<4; i++) {
-				x[i] = X_USER_TO_PX(x[i]);
-				y[i] = Y_USER_TO_PX(y[i]);
+				x_px[i] = X_USER_TO_PX(x[i]);
+				y_px[i] = Y_USER_TO_PX(y[i]);
 			}
 			if(body->filled) 
-				draw_polygon_filled(dp, x, y, 4);
+				draw_polygon_filled(dp, x_px, y_px, 4);
 			else {
 				draw_set_line_width(dp, body->line_width);
-				draw_polygon_outline(dp, x, y, 4);
+				draw_polygon_outline(dp, x_px, y_px, 4);
 			}
 			break;
 		}
@@ -1665,7 +1684,14 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 
 			int i;
 			for(i=0; i<poly->node_count; i++) {
-				body_transform_point_shape2ground(body, poly->node_x[i], poly->node_y[i], &x[i], &y[i]);
+				#if !NEW_TRANSFORMS
+					body_transform_point_shape2ground(body, poly->node_x[i], poly->node_y[i], &x[i], &y[i]);
+				#else
+					double tmp_x, tmp_y;
+					transform_point(&trans, poly->node_x[i], poly->node_y[i], &tmp_x, &tmp_y);
+					x[i] = tmp_x;
+					y[i] = tmp_y;
+				#endif
 				x[i] = X_USER_TO_PX(x[i]);
 				y[i] = Y_USER_TO_PX(y[i]);
 			}
@@ -1683,30 +1709,45 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		default:
 			ERROR("Unsupported body type!\n");
 			exit(-1);
-		}
+		} // end switch(body->type)
+
 		if(body->show_body_frame) {
-			float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-			float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-			body_transform_points_body2ground(body, 3, x, y, x, y);
+			#if NEW_TRANSFORMS
+				double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+				double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+				transform_points(&trans, 3, x, y, x, y);
+			#else
+				float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+				float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+				body_transform_points_body2ground(body, 3, x, y, x, y);
+			#endif
 			int i;
+			float x_px[3], y_px[3];
 			for(i=0; i<3; i++) {
-				x[i] = X_USER_TO_PX(x[i]);
-				y[i] = Y_USER_TO_PX(y[i]);
+				x_px[i] = X_USER_TO_PX(x[i]);
+				y_px[i] = Y_USER_TO_PX(y[i]);
 			}
 			draw_set_color(dp, 0,0,0);
-			draw_polygon_outline(dp, x, y, 3);
+			draw_polygon_outline(dp, x_px, y_px, 3);
 		}
 		if(body->show_shape_frame) {
-			float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-			float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-			body_transform_points_shape2ground(body, 3, x, y, x, y);
+			#if NEW_TRANSFORMS
+				double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+				double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+				transform_points(&trans, 3, x, y, x, y);
+			#else
+				float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+				float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+				body_transform_points_shape2ground(body, 3, x, y, x, y);
+			#endif
 			int i;
+			float x_px[3], y_px[3];
 			for(i=0; i<3; i++) {
-				x[i] = X_USER_TO_PX(x[i]);
-				y[i] = Y_USER_TO_PX(y[i]);
+				x_px[i] = X_USER_TO_PX(x[i]);
+				y_px[i] = Y_USER_TO_PX(y[i]);
 			}
 			draw_set_color(dp, 0,0,0);
-			draw_polygon_outline(dp, x, y, 3);
+			draw_polygon_outline(dp, x_px, y_px, 3);
 		}
 	}
 

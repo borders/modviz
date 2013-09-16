@@ -12,6 +12,7 @@
 		theta_offset="0.0"
 		filled="false"
 		color="#FF0000"
+		show_body_frame="true"
 	/>
 
 	<ground type="hash" x1="-8" y1="-2" x2="8" y2="-2" />
