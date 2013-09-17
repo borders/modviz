@@ -30,7 +30,6 @@
 #define PRINT_WARNINGS 1
 #define PRINT_ERRORS 1
 
-#define NEW_TRANSFORMS 1
 
 #if PRINT_DEBUG
 	#define DEBUG(...) printf(__VA_ARGS__)
@@ -74,6 +73,13 @@ static color_t COLOR_RED   = {1.0, 0.0, 0.0};
 static color_t COLOR_GREEN = {0.0, 1.0, 0.0};
 static color_t COLOR_BLUE  = {0.0, 0.0, 1.0};
 
+
+typedef struct _transform_t {
+	double x_offset;
+	double y_offset;
+	double A[2][2];
+} transform_t;
+
 typedef struct _body_t {
 	body_type_enum type;
 	double x;
@@ -97,13 +103,9 @@ typedef struct _body_t {
 	bool filled;
 	double line_width;
 	color_t color;
-} body_t;
 
-typedef struct _transform_t {
-	double x_offset;
-	double y_offset;
-	double A[2][2];
-} transform_t;
+	transform_t trans_shape_to_gnd;
+} body_t;
 
 void transform_point(transform_t *t, double x, double y, double *x_out, double *y_out) {
 	*x_out = t->x_offset + t->A[0][0] * x + t->A[0][1] * y;
@@ -1381,39 +1383,6 @@ typedef struct {
 } input_data_t;
 
 
-int read_line(input_data_t *input) {
-	char c;
-	int ret;
-
-	while( (ret = read(input->fd, &c, 1)) > 0) {
-		if(c == '\n') { // end of line
-			input->line_buf[input->line_length] = '\0';
-			input->line_complete = true;
-			break;
-		}
-		if(input->line_length >= input->line_capacity) {
-			input->line_capacity = 2 * input->line_capacity + 1;
-			input->line_buf = realloc(input->line_buf, input->line_capacity);
-			if(input->line_buf == NULL) {
-				ERROR("Error expanding input line buffer\n");
-				exit(-1);
-			}
-		}
-		input->line_buf[input->line_length++] = c;
-	}
-	if(ret == -1) { // nothing to read yet
-		return 0;
-	}
-	if(ret == 0) { //EOF
-		close(input->fd);
-		DEBUG("End of input file reached\n");
-		return -1;
-	}
-	if(input->line_complete) {
-	}
-	
-}
-
 int split_line_into_fields(char *line, char *fields[], int max_fields) {
 	char *p;
 	int field_count;
@@ -1450,41 +1419,7 @@ void print_body_info(body_t *body) {
 		body->id, body->x, body->y, body->theta);
 }
 
-static void body_transform_point_body2ground(
-		body_t *body,
-		float x_b, float y_b,
-		float *x_g, float *y_g)
-{
-	float sin_1, cos_1;
-	float arg_1;
-	arg_1 = body->theta + body->theta_offset;
-	sin_1 = sin(arg_1);
-	cos_1 = cos(arg_1);
 
-	*x_g = body->x + (x_b * cos_1) - (y_b * sin_1);
-	*y_g = body->y + (y_b * cos_1) + (x_b * sin_1);
-}
-
-static void body_transform_points_body2ground(
-		body_t *body, int num_points,
-		float *x_b, float *y_b,
-		float *x_g, float *y_g)
-{
-	float sin_1, cos_1;
-	float arg_1;
-	arg_1 = body->theta + body->theta_offset;
-	sin_1 = sin(arg_1);
-	cos_1 = cos(arg_1);
-
-	int i;
-	for(i=0; i<num_points; i++) {
-		float tmp_x, tmp_y;
-		tmp_x = body->x + (x_b[i] * cos_1) - (y_b[i] * sin_1);
-		tmp_y = body->y + (y_b[i] * cos_1) + (x_b[i] * sin_1);
-		x_g[i] = tmp_x;
-		y_g[i] = tmp_y;
-	}
-}
 
 static double body_theta_to_ground(body_t *body) {
 	body_t *b;
@@ -1519,54 +1454,6 @@ static void body_transform_shape_to_ground(body_t *body, transform_t *t_out) {
 
 	*t_out = T;
 }
-
-static void body_transform_point_shape2ground(
-		body_t *body,
-		float x_s, float y_s,
-		float *x_g, float *y_g)
-{
-	float sin_1, sin_2, cos_1, cos_2;
-	float arg_1, arg_2;
-	arg_1 = body->theta + body->theta_offset;
-	arg_2 = body->theta + body->theta_offset + body->phi;
-	sin_1 = sin(arg_1);
-	cos_1 = cos(arg_1);
-	sin_2 = sin(arg_2);
-	cos_2 = cos(arg_2);
-
-	*x_g = body->x + (body->x_offset * cos_1) - (body->y_offset * sin_1)
-	       + (x_s * cos_2) - (y_s * sin_2);
-	*y_g = body->y + (body->y_offset * cos_1) + (body->x_offset * sin_1)
-	       + (y_s * cos_2) + (x_s * sin_2);
-}
-
-static void body_transform_points_shape2ground(
-		body_t *body, int num_points,
-		float *x_s, float *y_s,
-		float *x_g, float *y_g)
-{
-	float sin_1, sin_2, cos_1, cos_2;
-	float arg_1, arg_2;
-	arg_1 = body->theta + body->theta_offset;
-	arg_2 = body->theta + body->theta_offset + body->phi;
-	sin_1 = sin(arg_1);
-	cos_1 = cos(arg_1);
-	sin_2 = sin(arg_2);
-	cos_2 = cos(arg_2);
-
-	int i;
-	for(i=0; i<num_points; i++) {
-		float tmp_x, tmp_y;
-		tmp_x = body->x + (body->x_offset * cos_1) - (body->y_offset * sin_1)
-				 + (x_s[i] * cos_2) - (y_s[i] * sin_2);
-		tmp_y = body->y + (body->y_offset * cos_1) + (body->x_offset * sin_1) 
-				 + (y_s[i] * cos_2) + (x_s[i] * sin_2);
-		x_g[i] = tmp_x;
-		y_g[i] = tmp_y;
-	}
-}
-	
- 
 
 #define X_USER_TO_PX(x) (x_m * (x) + x_b)
 #define Y_USER_TO_PX(y) (y_m * (y) + y_b)
@@ -1623,21 +1510,12 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all bodies *************************************************
 	for(i=0; i < app_data.num_bodies; i++) {
 		body_t *body = app_data.bodies[i];
-		#if NEW_TRANSFORMS
-			transform_t trans;
-			body_transform_shape_to_ground(body, &trans);
-		#endif
 		switch(body->type) {
 		case BODY_TYPE_BALL: {
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float r = ((ball_t *)body)->radius;
-			#if !NEW_TRANSFORMS
-				float x_c, y_c;
-				body_transform_point_shape2ground(body, 0.0, 0.0, &x_c, &y_c);
-			#else
-				double x_c, y_c;
-				transform_point(&trans, 0.0, 0.0, &x_c, &y_c);
-			#endif
+			double x_c, y_c;
+			transform_point(&(body->trans_shape_to_gnd), 0.0, 0.0, &x_c, &y_c);
 
 			if(body->filled) 
 				draw_circle_filled(dp, X_USER_TO_PX(x_c), Y_USER_TO_PX(y_c), L_USER_TO_PX(r));
@@ -1652,15 +1530,9 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			draw_set_color(dp, body->color.red, body->color.green, body->color.blue);
 			float w_2 = block->width/2.0;
 			float h_2 = block->height/2.0;
-			#if !NEW_TRANSFORMS
-				float x[4] = {-w_2, +w_2, +w_2, -w_2};
-				float y[4] = {-h_2, -h_2, +h_2, +h_2};
-				body_transform_points_shape2ground(body, 4, x, y, x, y);
-			#else
-				double x[4] = {-w_2, +w_2, +w_2, -w_2};
-				double y[4] = {-h_2, -h_2, +h_2, +h_2};
-				transform_points(&trans, 4, x, y, x, y);
-			#endif
+			double x[4] = {-w_2, +w_2, +w_2, -w_2};
+			double y[4] = {-h_2, -h_2, +h_2, +h_2};
+			transform_points(&(body->trans_shape_to_gnd), 4, x, y, x, y);
 			int i;
 			float x_px[4], y_px[4];
 			for(i=0; i<4; i++) {
@@ -1684,14 +1556,10 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 
 			int i;
 			for(i=0; i<poly->node_count; i++) {
-				#if !NEW_TRANSFORMS
-					body_transform_point_shape2ground(body, poly->node_x[i], poly->node_y[i], &x[i], &y[i]);
-				#else
-					double tmp_x, tmp_y;
-					transform_point(&trans, poly->node_x[i], poly->node_y[i], &tmp_x, &tmp_y);
-					x[i] = tmp_x;
-					y[i] = tmp_y;
-				#endif
+				double tmp_x, tmp_y;
+				transform_point(&(body->trans_shape_to_gnd), poly->node_x[i], poly->node_y[i], &tmp_x, &tmp_y);
+				x[i] = tmp_x;
+				y[i] = tmp_y;
 				x[i] = X_USER_TO_PX(x[i]);
 				y[i] = Y_USER_TO_PX(y[i]);
 			}
@@ -1712,15 +1580,9 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 		} // end switch(body->type)
 
 		if(body->show_body_frame) {
-			#if NEW_TRANSFORMS
-				double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-				double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-				transform_points(&trans, 3, x, y, x, y);
-			#else
-				float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-				float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-				body_transform_points_body2ground(body, 3, x, y, x, y);
-			#endif
+			double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+			double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+			transform_points(&(body->trans_shape_to_gnd), 3, x, y, x, y);
 			int i;
 			float x_px[3], y_px[3];
 			for(i=0; i<3; i++) {
@@ -1731,15 +1593,9 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			draw_polygon_outline(dp, x_px, y_px, 3);
 		}
 		if(body->show_shape_frame) {
-			#if NEW_TRANSFORMS
-				double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-				double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-				transform_points(&trans, 3, x, y, x, y);
-			#else
-				float x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
-				float y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
-				body_transform_points_shape2ground(body, 3, x, y, x, y);
-			#endif
+			double x[3] = {L_PX_TO_USER(FRAME_SIZE_PX), 0, 0};
+			double y[3] = {0, 0, L_PX_TO_USER(FRAME_SIZE_PX)};
+			transform_points(&(body->trans_shape_to_gnd), 3, x, y, x, y);
 			int i;
 			float x_px[3], y_px[3];
 			for(i=0; i<3; i++) {
@@ -1754,25 +1610,14 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw all the connectors ************************************************
 	for(i=0; i < app_data.num_connectors; i++) {
 		connector_t *connect = app_data.connectors[i];
-		#if NEW_TRANSFORMS
-			transform_t trans_1, trans_2;
-			body_transform_shape_to_ground(connect->body_1, &trans_1);
-			body_transform_shape_to_ground(connect->body_2, &trans_2);
-		#endif
 		switch(connect->type) {
 			case CONN_TYPE_SPRING:
 				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
 				draw_set_line_width(dp, connect->thickness);
 			
-				#if NEW_TRANSFORMS
-					double x1, x2, y1, y2;
-					transform_point(&trans_1, connect->x1, connect->y1, &x1, &y1);
-					transform_point(&trans_2, connect->x2, connect->y2, &x2, &y2);
-				#else
-					float x1, y1, x2, y2;
-					body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
-					body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
-				#endif
+				double x1, x2, y1, y2;
+				transform_point(&(connect->body_1->trans_shape_to_gnd), connect->x1, connect->y1, &x1, &y1);
+				transform_point(&(connect->body_2->trans_shape_to_gnd), connect->x2, connect->y2, &x2, &y2);
 
 				float dx = x2 - x1;
 				float dy = y2 - y1;
@@ -1795,15 +1640,9 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			case CONN_TYPE_LINE: {
 				draw_set_color(dp, connect->color.red, connect->color.green, connect->color.blue);
 				draw_set_line_width(dp, connect->thickness);
-				#if NEW_TRANSFORMS
-					double x1, y1, x2, y2;
-					transform_point(&trans_1, connect->x1, connect->y1, &x1, &y1);
-					transform_point(&trans_2, connect->x2, connect->y2, &x2, &y2);
-				#else
-					float x1, y1, x2, y2;
-					body_transform_point_shape2ground(connect->body_1, connect->x1, connect->y1, &x1, &y1);
-					body_transform_point_shape2ground(connect->body_2, connect->x2, connect->y2, &x2, &y2);
-				#endif
+				double x1, y1, x2, y2;
+				transform_point(&(connect->body_1->trans_shape_to_gnd), connect->x1, connect->y1, &x1, &y1);
+				transform_point(&(connect->body_2->trans_shape_to_gnd), connect->x2, connect->y2, &x2, &y2);
 				draw_line ( dp,
 					X_USER_TO_PX(x1), Y_USER_TO_PX(y1),
 					X_USER_TO_PX(x2), Y_USER_TO_PX(y2)
@@ -1868,6 +1707,13 @@ gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	return TRUE;
 }
 
+static void update_body_transforms(void) {
+	int i;
+	for(i=0; i<app_data.num_bodies; i++) {
+		body_transform_shape_to_ground(app_data.bodies[i], &(app_data.bodies[i]->trans_shape_to_gnd));
+	}
+}
+
 static void update_bodies(void) {
 	int j;
 	frame_ptr_t pframe = app_data.frames[app_data.active_frame_index];
@@ -1885,6 +1731,8 @@ static void update_bodies(void) {
 				exit(-1);
 		}
 	}
+
+	update_body_transforms();
 
 }
 
