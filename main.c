@@ -1739,11 +1739,19 @@ static double get_time_from_frame(frame_ptr_t pframe) {
 
 gboolean update_func(gpointer data) {
 
+	if(app_data.num_frames < 2) {
+		if(app_data.num_frames == 1) {
+			update_bodies();
+		}
+		update_body_transforms();
+		gtk_widget_queue_draw(app_data.gui.canvas);
+		return FALSE;
+	}
+
 	if(app_data.paused) {
 		return TRUE;
 	}
 
-	//printf("frame #%05d:\n", app_data.active_frame_index);
 	update_bodies();
 
 	// set the slider value
@@ -1759,7 +1767,7 @@ gboolean update_func(gpointer data) {
 	gtk_label_set_text((GtkLabel*)app_data.gui.time, str);
 
 	// request a redraw of the canvas, which will redraw everything
-  gtk_widget_queue_draw(app_data.gui.canvas);
+	gtk_widget_queue_draw(app_data.gui.canvas);
 
 	// advance frame counter
 	// If we get to the end (last frame), start over at the beginning
@@ -1995,34 +2003,36 @@ void init_gui(void) {
 	gtk_button_set_image((GtkButton *)button, button_image);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	app_data.gui.slider = 
-		gtk_hscale_new_with_range(
-			app_data.t_min, 
-			app_data.t_max, 
-			(app_data.explicit_time ? 0.05 : app_data.dt) 
+	app_data.gui.slider = NULL;
+	if(app_data.num_frames > 1) {
+		app_data.gui.slider = 
+			gtk_hscale_new_with_range(
+				app_data.t_min, 
+				app_data.t_max, 
+				(app_data.explicit_time ? 0.05 : app_data.dt) 
+			);
+		gtk_scale_set_draw_value((GtkScale *)app_data.gui.slider, FALSE);
+		//g_signal_connect(app_data.gui.slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
+		g_signal_connect(app_data.gui.slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
+		char str[20];
+		snprintf(str, sizeof(str), "%g", app_data.t_min);
+		gtk_scale_add_mark(
+			(GtkScale *)app_data.gui.slider,
+			app_data.t_min,
+			GTK_POS_BOTTOM,
+			str
 		);
-	gtk_scale_set_draw_value((GtkScale *)app_data.gui.slider, FALSE);
-	//g_signal_connect(app_data.gui.slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
-	g_signal_connect(app_data.gui.slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
-	char str[20];
-	snprintf(str, sizeof(str), "%g", app_data.t_min);
-	gtk_scale_add_mark(
-		(GtkScale *)app_data.gui.slider,
-		app_data.t_min,
-		GTK_POS_BOTTOM,
-		str
-	);
-	snprintf(str, sizeof(str), "%g", app_data.t_max);
-	gtk_scale_add_mark(
-		(GtkScale *)app_data.gui.slider,
-		app_data.t_max,
-		GTK_POS_BOTTOM,
-		str
-	);
-	gtk_scale_set_digits((GtkScale *)app_data.gui.slider, 5);
-	gtk_box_pack_start (GTK_BOX(vcr_hbox), app_data.gui.slider, TRUE, TRUE, 0);
-
-	gtk_range_set_value((GtkRange *)app_data.gui.slider, 0.05);
+		snprintf(str, sizeof(str), "%g", app_data.t_max);
+		gtk_scale_add_mark(
+			(GtkScale *)app_data.gui.slider,
+			app_data.t_max,
+			GTK_POS_BOTTOM,
+			str
+		);
+		gtk_scale_set_digits((GtkScale *)app_data.gui.slider, 5);
+		gtk_box_pack_start (GTK_BOX(vcr_hbox), app_data.gui.slider, TRUE, TRUE, 0);
+		gtk_range_set_value((GtkRange *)app_data.gui.slider, 0.05);
+	}
 
 	GtkWidget *status_hbox = gtk_hbox_new(FALSE, 10);
 	gtk_box_pack_start (GTK_BOX(v_box), status_hbox, FALSE, FALSE, 0);
@@ -2074,91 +2084,101 @@ int main(int argc, char *argv[]) {
 		print_connector_info(app_data.connectors[i]);
 	}
 
-	char *infile = "-";
+	char *infile;
 	FILE *fp;
 	if(args.inputs_num > 1) {
 		infile = args.inputs[1];
-		fp = fopen(infile, "r");
-		if(fp==NULL) {
-			ERROR("Error opening datafile: %s\n", infile);
-			exit(-1);
-		}
-	}
-	else {
-		fp = stdin;
-	}
-	char line[2000];
-	unsigned int line_num = 0;
-	while(fgets(line, sizeof(line), fp) != NULL) {
-		//printf("got line (%d chars long): %s\n", (int)strlen(line), line);
-		line_num++;
-		//printf("here %d\n", line_num);
-		int i;
-		char *fields[MAX_FIELDS];
-
-
-		int field_count = split_line_into_fields(line, fields, MAX_FIELDS);
-		if(field_count < 0) {
-			continue;
-		}
-
-		frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
-		int offset = 0;
-		for(i=0; i < app_data.num_input_maps; i++) {
-			input_map_t *map = app_data.input_maps[i];
-			if(map->field_num > field_count) {
-				ERROR("Not enough fields!!\n");
+		if(!strcmp(infile, "-")) {
+			fp = stdin;
+		} else {
+			fp = fopen(infile, "r");
+			if(fp==NULL) {
+				ERROR("Error opening datafile: %s\n", infile);
 				exit(-1);
 			}
-			int field_index = map->field_num - 1;
-			switch(map->data_type) {
-				case DATA_TYPE_DOUBLE: {
-					double d;
-					if(parse_double(fields[field_index], &d)) {
-						ERROR("Error parsing double from field (\"%s\")\n", fields[field_index]);
-						ERROR("line: %s\n", line);
-						exit(-1);
-					}
-					//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
-					*((double *)(&pframe[offset])) = d;
-					map->frame_byte_offset = offset;
-					offset += sizeof(double);
+		}
+		char line[2000];
+		unsigned int line_num = 0;
+		while(fgets(line, sizeof(line), fp) != NULL) {
+			//printf("got line (%d chars long): %s\n", (int)strlen(line), line);
+			line_num++;
+			//printf("here %d\n", line_num);
+			int i;
+			char *fields[MAX_FIELDS];
 
-					// ensure that timestamp is monotonic, and keep track of min/max timestamps
-					if(i == app_data.time_map_index) {
-						if(app_data.num_frames == 0) { // first frame
-							app_data.t_min = d;
-							app_data.t_max = d;
-						}
-						else if(d < app_data.t_max) {
-							ERROR("Non-monotonic timestamp detected!!!\n");
+
+			int field_count = split_line_into_fields(line, fields, MAX_FIELDS);
+			if(field_count < 0) {
+				continue;
+			}
+
+			frame_ptr_t pframe = frame_alloc(app_data.bytes_per_frame);
+			int offset = 0;
+			for(i=0; i < app_data.num_input_maps; i++) {
+				input_map_t *map = app_data.input_maps[i];
+				if(map->field_num > field_count) {
+					ERROR("Not enough fields!!\n");
+					exit(-1);
+				}
+				int field_index = map->field_num - 1;
+				switch(map->data_type) {
+					case DATA_TYPE_DOUBLE: {
+						double d;
+						if(parse_double(fields[field_index], &d)) {
+							ERROR("Error parsing double from field (\"%s\")\n", fields[field_index]);
+							ERROR("line: %s\n", line);
 							exit(-1);
 						}
-						else {
-							app_data.t_max = d;
-						}
-					}
-					break;
-				}
-				default:
-					ERROR("Unknown data type!\n");
-			}
-		}
-		if(app_data.num_frames >= app_data.frames_capacity) {
-			app_data.frames_capacity *= 3;
-			app_data.frames = realloc(app_data.frames, app_data.frames_capacity * sizeof(app_data.frames[0]));
-			if(app_data.frames == NULL) {
-				ERROR("Error expanding size of 'frames'.\n");
-				exit(-1);
-			}
-		}
-		app_data.frames[app_data.num_frames++] = pframe;
-	
-	}
+						//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
+						*((double *)(&pframe[offset])) = d;
+						map->frame_byte_offset = offset;
+						offset += sizeof(double);
 
-	if(!feof(fp)) {
-		ERROR("Error while reading datafile!!\n");
-		exit(-1);
+						// ensure that timestamp is monotonic, and keep track of min/max timestamps
+						if(i == app_data.time_map_index) {
+							if(app_data.num_frames == 0) { // first frame
+								app_data.t_min = d;
+								app_data.t_max = d;
+							}
+							else if(d < app_data.t_max) {
+								ERROR("Non-monotonic timestamp detected!!!\n");
+								exit(-1);
+							}
+							else {
+								app_data.t_max = d;
+							}
+						}
+						break;
+					}
+					default:
+						ERROR("Unknown data type!\n");
+				}
+			}
+			if(app_data.num_frames >= app_data.frames_capacity) {
+				app_data.frames_capacity *= 3;
+				app_data.frames = realloc(app_data.frames, app_data.frames_capacity * sizeof(app_data.frames[0]));
+				if(app_data.frames == NULL) {
+					ERROR("Error expanding size of 'frames'.\n");
+					exit(-1);
+				}
+			}
+			app_data.frames[app_data.num_frames++] = pframe;
+		
+		}
+
+		if(!feof(fp)) {
+			ERROR("Error while reading datafile!!\n");
+			exit(-1);
+		}
+
+	}
+		printf("Got %d frames\n", app_data.num_frames);
+		app_data.active_frame_index = 0;
+
+	if(app_data.num_frames == 0) {
+		printf("Got ZERO frames from datafile. Displaying positions from XML config file...\n");
+	} else if (app_data.num_frames == 1) {
+		printf("Only got 1 frame from datafile...\n");
 	}
 
 	// set min/max time for implicit time case
@@ -2166,9 +2186,6 @@ int main(int argc, char *argv[]) {
 		app_data.t_min = 0.0;
 		app_data.t_max = (app_data.num_frames - 1) * app_data.dt;
 	}
-
-	printf("Got %d frames\n", app_data.num_frames);
-	app_data.active_frame_index = 0;
 
 	init_gui();
 	gtk_main();
