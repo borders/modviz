@@ -14,6 +14,7 @@
 #include <fcntl.h>
 
 #include "draw.h"
+#include "cmdline.h"
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -2044,6 +2045,8 @@ void init_gui(void) {
 
 #define MAX_FIELDS 30
 int main(int argc, char *argv[]) {
+	struct gengetopt_args_info args_info;
+	cmdline_parser(argc, argv, &args_info);
 
 	if(argc < 2) {
 		print_usage(stdout, argv[0]);
@@ -2052,7 +2055,7 @@ int main(int argc, char *argv[]) {
 
 	app_data_init(&app_data);
 
-	/* this initialize the library and check potential ABI mismatches
+	/* this initializes the library and check potential ABI mismatches
 	 * between the version it was compiled for and the actual shared
 	 * library used. */
 	LIBXML_TEST_VERSION

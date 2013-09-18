@@ -1,0 +1,20 @@
+package "modviz"
+version "0.1"
+purpose "Model Vizualization Tool"
+#usage "<usage>"
+description "This tool will improve your life!"
+
+#args "<command line options to gengetopt>"
+
+#option <long> <short> "<desc>"
+#  {details="<detailed description>"}
+#  {argtype} {typestr="<type descr>"}
+#  {values="<value1>","<value2>",...}
+#  {default="<default value>"}
+#  {dependon="<other option>"}
+#  {required} {argoptional} {multiple}
+#  {hidden}
+
+#option <long> <short> "<desc>" flag <on/off>
+
+option "a-opt" a "blah blah blag" flag off
