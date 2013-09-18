@@ -1,4 +1,4 @@
-CFLAGS = -Wall
+CFLAGS = -Wall -Wno-unused-function -Wno-pointer-sign
 
 all: modviz_x11 modviz_cairo
 

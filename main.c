@@ -1080,7 +1080,6 @@ int parse_connector_xml(xmlNode *xml, connector_t *connect) {
 
 			int err = 0;
 			int id;
-			double x, y;
 			err = err || parse_attrib_to_double(xnode, x_dest[attach_count], "x", true, 0);
 			err = err || parse_attrib_to_double(xnode, y_dest[attach_count], "y", true, 0);
 			err = err || parse_attrib_to_int(xnode, &id, "id", true, 0);
@@ -1464,7 +1463,7 @@ static void body_transform_shape_to_ground(body_t *body, transform_t *t_out) {
 gboolean draw_canvas(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	draw_ptr dp = app_data.gui.drawer;
 	draw_start(dp); 
-	int i, j;
+	int i;
 
 	float width, height;
 	draw_get_canvas_dims(dp, &width, &height);

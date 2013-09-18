@@ -82,7 +82,6 @@ void draw_start(void *dp) {
 }
 
 void draw_finish(void *dp) {
-	x_draw_t *d = (x_draw_t *)dp;
 	;
 }
 
