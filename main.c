@@ -1367,12 +1367,6 @@ int parse_config_xml(xmlNode *xml) {
 	return 0;
 }
 
-void print_usage(FILE *stream, char *prog_name) {
-	fprintf(stream, "Usage: %s XML_CONFIG_FILE [DATAFILE]\n", prog_name);
-	fprintf(stream, "\n");
-	fprintf(stream, "DATAFILE may be either a file name/path or \"-\" to denote STDIN.\n");
-	fprintf(stream, "If DATAFILE is not given, STDIN will be used.\n");
-}
 typedef struct {
 	char *fname;
 	int fd;
@@ -2045,11 +2039,11 @@ void init_gui(void) {
 
 #define MAX_FIELDS 30
 int main(int argc, char *argv[]) {
-	struct gengetopt_args_info args_info;
-	cmdline_parser(argc, argv, &args_info);
+	struct gengetopt_args_info args;
+	cmdline_parser(argc, argv, &args);
 
-	if(argc < 2) {
-		print_usage(stdout, argv[0]);
+	if(args.inputs_num < 1) {
+		cmdline_parser_print_help();
 		return 0;
 	}
 
@@ -2062,7 +2056,7 @@ int main(int argc, char *argv[]) {
 
 	xmlDocPtr doc;
 	xmlNodePtr root;
-	if(load_config(argv[1], &doc)) {
+	if(load_config(args.inputs[0], &doc)) {
 		printf("Error loading or valdiating XML config file!\n");
 		exit(-1);
 	}
@@ -2082,8 +2076,8 @@ int main(int argc, char *argv[]) {
 
 	char *infile = "-";
 	FILE *fp;
-	if(argc > 2) {
-		infile = argv[2];
+	if(args.inputs_num > 1) {
+		infile = args.inputs[1];
 		fp = fopen(infile, "r");
 		if(fp==NULL) {
 			ERROR("Error opening datafile: %s\n", infile);

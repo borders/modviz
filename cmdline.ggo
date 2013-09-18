@@ -1,8 +1,13 @@
 package "modviz"
+
 version "0.1"
+
 purpose "Model Vizualization Tool"
-#usage "<usage>"
-description "This tool will improve your life!"
+
+usage "modviz [options] XML_CONFIG_FILE [DATAFILE]"
+
+description "DATAFILE may be either a file name/path or \"-\" to denote STDIN. \
+If DATAFILE is not given, STDIN will be used."
 
 #args "<command line options to gengetopt>"
 
