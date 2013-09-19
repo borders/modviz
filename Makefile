@@ -30,3 +30,4 @@ cmdline.c cmdline.h: cmdline.ggo
 .PHONY: clean
 clean:
 	rm -f *.o
+	rm cmdline.c cmdline.h
