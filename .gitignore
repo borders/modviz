@@ -1,0 +1,5 @@
+cmdline.c
+cmdline.h
+*.o
+modviz_cairo
+modviz_x11
