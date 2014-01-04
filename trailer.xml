@@ -1,0 +1,50 @@
+<modviz_config x_min="-10" x_max="+610" y_min="-10" y_max="+610" >
+
+	<ball
+		name="front"
+		id="1"
+		radius="5"
+		x="200.0"
+		y="200.0"
+		theta="0.0"
+		x_offset="0.0"
+		y_offset="0.0"
+		theta_offset="0.0"
+		filled="true"
+		color="#0000FF"
+		show_body_frame="false"
+	/>
+
+	<ball
+		name="rear"
+		id="2"
+		radius="5"
+		x="200.0"
+		y="100.0"
+		theta="0.0"
+		x_offset="0.0"
+		y_offset="0.0"
+		theta_offset="0.0"
+		filled="true"
+		color="#FF0000"
+		show_body_frame="false"
+	/>
+
+	<connector name="pendulum_shaft" id="777" type="line" line_width="20.0" color="#234567">
+		<attach id="1" x="0.0" y="0.0" />
+		<attach id="2" x="0.0" y="0.0" />
+	</connector>
+
+
+
+	<input_format>
+		<map column="1" type="time" />
+
+		<map column="2" type="body" id="1" field="x" />
+		<map column="3" type="body" id="1" field="y" />
+
+		<map column="6" type="body" id="2" field="x" />
+		<map column="7" type="body" id="2" field="y" />
+	</input_format>
+
+</modviz_config>
