@@ -19,6 +19,12 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+#define USE_PLOTS 1
+
+#if USE_PLOTS
+	#include <jbplot.h>
+#endif
+
 #define MAX_BODIES     500
 #define MAX_CONNECTORS 500
 #define MAX_INPUT_MAPS 100
@@ -246,6 +252,11 @@ typedef struct {
 	draw_ptr drawer;
 	GtkWidget *playback_state;
 	GtkWidget *time;
+
+	#if USE_PLOTS
+	GtkWidget *h_pane;
+	GtkWidget *plot_win;
+	#endif
 } gui_t;
 
 typedef struct {
@@ -1976,6 +1987,7 @@ void init_gui(void) {
 	GtkWidget *v_box;
 	GtkWidget *vcr_hbox;
 	GtkWidget *button;
+	gui_t *gp = &(app_data.gui);
 
 	gtk_init (NULL, NULL);
 
@@ -1984,12 +1996,34 @@ void init_gui(void) {
 	v_box = gtk_vbox_new(FALSE, 1);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 
-	app_data.gui.canvas = gtk_drawing_area_new();
-	gtk_widget_set_size_request(app_data.gui.canvas, 500,400);
-	gtk_box_pack_start (GTK_BOX(v_box), app_data.gui.canvas, TRUE, TRUE, 0);
-	g_signal_connect(app_data.gui.canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
+	gp->canvas = gtk_drawing_area_new();
+	gtk_widget_set_size_request(gp->canvas, 500,400);
+	g_signal_connect(gp->canvas, "expose_event", G_CALLBACK(draw_canvas), NULL);
 
-	app_data.gui.drawer = draw_create(app_data.gui.canvas);
+#if USE_PLOTS
+	gp->h_pane = gtk_hpaned_new();
+	gtk_box_pack_start (GTK_BOX(v_box), gp->h_pane, TRUE, TRUE, 0);
+	gtk_paned_pack1(GTK_PANED(gp->h_pane), gp->canvas, TRUE, TRUE);
+
+	gp->plot_win = gtk_scrolled_window_new(NULL, NULL);
+   gtk_scrolled_window_set_policy(
+      GTK_SCROLLED_WINDOW(gp->plot_win),
+      GTK_POLICY_NEVER,
+      GTK_POLICY_AUTOMATIC
+   );
+   gtk_paned_pack2(GTK_PANED(gp->h_pane), gp->plot_win, TRUE, TRUE);
+
+	GtkWidget *plot_v_box = gtk_vbox_new(FALSE, 4);
+   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(gp->plot_win), plot_v_box);
+
+ 	GtkWidget *g_plot = jbplot_new();
+   gtk_box_pack_start(GTK_BOX(plot_v_box), g_plot, TRUE, TRUE, 0);
+
+#else
+	gtk_box_pack_start (GTK_BOX(v_box), gp->canvas, TRUE, TRUE, 0);
+#endif
+
+	gp->drawer = draw_create(gp->canvas);
 
 	vcr_hbox = gtk_hbox_new(FALSE, 10);
 	GtkWidget *button_v_box = gtk_vbox_new(FALSE, 10);
@@ -2003,44 +2037,44 @@ void init_gui(void) {
 	gtk_button_set_image((GtkButton *)button, button_image);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	app_data.gui.slider = NULL;
+	gp->slider = NULL;
 	if(app_data.num_frames > 1) {
-		app_data.gui.slider = 
+		gp->slider = 
 			gtk_hscale_new_with_range(
 				app_data.t_min, 
 				app_data.t_max, 
 				(app_data.explicit_time ? 0.05 : app_data.dt) 
 			);
-		gtk_scale_set_draw_value((GtkScale *)app_data.gui.slider, FALSE);
-		//g_signal_connect(app_data.gui.slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
-		g_signal_connect(app_data.gui.slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
+		gtk_scale_set_draw_value((GtkScale *)gp->slider, FALSE);
+		//g_signal_connect(gp->slider, "value-changed", G_CALLBACK(slider_changed_cb), NULL);
+		g_signal_connect(gp->slider, "change-value", G_CALLBACK(slider_changed2_cb), NULL);
 		char str[20];
 		snprintf(str, sizeof(str), "%g", app_data.t_min);
 		gtk_scale_add_mark(
-			(GtkScale *)app_data.gui.slider,
+			(GtkScale *)gp->slider,
 			app_data.t_min,
 			GTK_POS_BOTTOM,
 			str
 		);
 		snprintf(str, sizeof(str), "%g", app_data.t_max);
 		gtk_scale_add_mark(
-			(GtkScale *)app_data.gui.slider,
+			(GtkScale *)gp->slider,
 			app_data.t_max,
 			GTK_POS_BOTTOM,
 			str
 		);
-		gtk_scale_set_digits((GtkScale *)app_data.gui.slider, 5);
-		gtk_box_pack_start (GTK_BOX(vcr_hbox), app_data.gui.slider, TRUE, TRUE, 0);
-		gtk_range_set_value((GtkRange *)app_data.gui.slider, 0.05);
+		gtk_scale_set_digits((GtkScale *)gp->slider, 5);
+		gtk_box_pack_start (GTK_BOX(vcr_hbox), gp->slider, TRUE, TRUE, 0);
+		gtk_range_set_value((GtkRange *)gp->slider, 0.05);
 	}
 
 	GtkWidget *status_hbox = gtk_hbox_new(FALSE, 10);
 	gtk_box_pack_start (GTK_BOX(v_box), status_hbox, FALSE, FALSE, 0);
-	app_data.gui.playback_state = gtk_label_new("Playing...");
-	gtk_box_pack_start (GTK_BOX(status_hbox), app_data.gui.playback_state, FALSE, FALSE, 0);
+	gp->playback_state = gtk_label_new("Playing...");
+	gtk_box_pack_start (GTK_BOX(status_hbox), gp->playback_state, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX(status_hbox), gtk_vseparator_new(), FALSE, FALSE, 0);
-	app_data.gui.time = gtk_label_new("t=0.0");
-	gtk_box_pack_start (GTK_BOX(status_hbox), app_data.gui.time, FALSE, FALSE, 0);
+	gp->time = gtk_label_new("t=0.0");
+	gtk_box_pack_start (GTK_BOX(status_hbox), gp->time, FALSE, FALSE, 0);
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 	gtk_widget_show_all (window);
