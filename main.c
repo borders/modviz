@@ -1132,7 +1132,7 @@ int parse_body_xml(xmlNode *xml, body_t *body) {
 	sprintf(name, "body_%03d", body->id);
 	error = error || parse_attrib_to_string(xml, &body->name, "name", false, name);
 
-	int i;
+	int i = 0;
 	error = error || parse_attrib_to_int(xml, &i, "xy_parent_id", false, 0);
 	if(i != 0) {
 		body_t *b = lookup_body_by_id(i);
