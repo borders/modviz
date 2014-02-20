@@ -19,7 +19,8 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
-#define USE_PLOTS 1
+#define USE_PLOTS 0
+#define MAX_NUM_PLOTS 10
 
 #if USE_PLOTS
 	#include <jbplot.h>
@@ -74,11 +75,14 @@ typedef struct {
 	float blue;
 } color_t;
 
+static int lmargin = 75;
+static int rmargin = 110;
 static color_t COLOR_BLACK = {0.0, 0.0, 0.0};
 static color_t COLOR_WHITE = {1.0, 1.0, 1.0};
 static color_t COLOR_RED   = {1.0, 0.0, 0.0};
 static color_t COLOR_GREEN = {0.0, 1.0, 0.0};
 static color_t COLOR_BLUE  = {0.0, 0.0, 1.0};
+static int needs_lineup = 0;
 
 
 typedef struct _transform_t {
@@ -228,6 +232,7 @@ typedef enum {
 } data_type_enum;
 
 typedef struct _input_map_t {
+	int type; 
 	int field_num; // 1-based
 	void *dest; // where to write the value (a field of a body_t)
 	data_type_enum data_type;
@@ -247,22 +252,24 @@ frame_ptr_t frame_alloc(int size) {
 }
 
 typedef struct {
+	double min;
+	double max;
+} range_t;
+
+typedef struct {
 	GtkWidget *canvas;
 	GtkWidget *slider;
 	draw_ptr drawer;
 	GtkWidget *playback_state;
 	GtkWidget *time;
 
-	#if USE_PLOTS
 	GtkWidget *h_pane;
 	GtkWidget *plot_win;
-	#endif
-} gui_t;
+	GtkWidget *plot_v_box;
 
-typedef struct {
-	double min;
-	double max;
-} range_t;
+	GtkWidget *plots[MAX_NUM_PLOTS];
+	int plot_count;
+} gui_t;
 
 typedef struct _app_data_t {
 	body_t *bodies[MAX_BODIES];
@@ -378,7 +385,8 @@ void block_dealloc(block_t *self) {
 	}
 }
 
-void ball_dealloc(ball_t *self) {
+void ball_dealloc(ball_t *self) 
+{
 	if(self) {
 		free(self);
 	}
@@ -390,8 +398,90 @@ int ball_init(ball_t *self) {
 	return 0;
 }
 
+#if USE_PLOTS
+gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
+   int i;
+   printf("Zoomed In!\n");
+   printf("x-range: (%lg, %lg)\n", xmin, xmax);
+   printf("y-range: (%lg, %lg)\n", ymin, ymax);
+   for(i=0; i<app_data.gui.plot_count; i++) {
+      jbplot *p = (jbplot *)(app_data.gui.plots[i]);
+      if(p != plot) {
+         jbplot_set_x_axis_range(p, xmin, xmax, 1);
+      }
+   }
+   needs_lineup = 1;
+   return 0;
+}
 
-block_t *block_alloc(void) {
+
+gint zoom_all_cb(jbplot *plot) {
+   int i;
+   printf("Zoom All!\n");
+   for(i=0; i<app_data.gui.plot_count; i++) {
+      jbplot *p = (jbplot *)(app_data.gui.plots[i]);
+      if(p != plot) {
+         jbplot_set_xy_scale_mode(p, SCALE_AUTO_TIGHT, 1);
+      }
+      else {
+         jbplot_set_xy_scale_mode(p, SCALE_AUTO_TIGHT, 0);
+      }
+   }
+   needs_lineup = 1;
+   return 0;
+}
+
+gint pan_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
+   int i;
+   //myprintf("Panning!\n");
+   for(i=0; i<app_data.gui.plot_count; i++) {
+      jbplot *p = (jbplot *)(app_data.gui.plots[i]);
+      if(p != plot) {
+         jbplot_set_x_axis_range(p, xmin, xmax, 0);
+      }
+   }
+   return 0;
+}
+
+static int add_plot(gui_t *g) 
+{
+   if(g->plot_count >= MAX_NUM_PLOTS) {
+      return -1;
+   }
+   GtkWidget *p = jbplot_new ();
+   gtk_widget_set_size_request(p, 400, 125);
+   gtk_box_pack_start (GTK_BOX(g->plot_v_box), p, TRUE, TRUE, 0);
+
+   g_signal_connect(p, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
+   g_signal_connect(p, "zoom-all", G_CALLBACK (zoom_all_cb), NULL);
+   g_signal_connect(p, "pan", G_CALLBACK (pan_cb), NULL);
+
+   jbplot_set_plot_title_visible((jbplot *)p, 0);
+   jbplot_set_x_axis_label((jbplot *)p, "Time (sec)", 1);
+   jbplot_set_x_axis_label_visible((jbplot *)p, 1);
+   jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
+   jbplot_set_y_axis_label_visible((jbplot *)p, 1);
+
+   jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, lmargin, rmargin);
+
+   //jbplot_set_x_axis_format((jbplot *)p, "%.0f");
+
+	jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_NONE);
+	jbplot_legend_refresh((jbplot *)p);
+
+   rgb_color_t gridline_color = {0.7, 0.7, 0.7};
+   jbplot_set_x_axis_gridline_props((jbplot *)p, LINETYPE_DASHED, 1.0, &gridline_color);
+   jbplot_set_y_axis_gridline_props((jbplot *)p, LINETYPE_DASHED, 1.0, &gridline_color);
+
+   g->plots[g->plot_count] = p;
+   g->plot_count++;
+   gtk_widget_show(p);
+   return 0;
+}
+#endif
+
+block_t *block_alloc(void) 
+{
 	block_t *block;
 	block = malloc(sizeof(block_t));
 	if(block == NULL) {
@@ -731,12 +821,14 @@ static enum_map_t gnd_type_enum_map[] = {
 
 typedef enum {
 	INPUT_TYPE_TIME,
-	INPUT_TYPE_BODY
+	INPUT_TYPE_BODY,
+	INPUT_TYPE_PLOT
 } input_type_enum;
 
 static enum_map_t input_fmt_enum_map[] = {
 	{"time", INPUT_TYPE_TIME},
 	{"body", INPUT_TYPE_BODY},
+	{"plot", INPUT_TYPE_PLOT},
 
 	{0} // denotes end of array
 };
@@ -986,62 +1078,67 @@ int parse_input_format_xml(xmlNode *xml) {
 				return -1;
 			}
 			input_map_t *map = malloc(sizeof(input_map_t));
+			map->type = type;
 			map->field_num = column;
 			switch(type) {
-				case INPUT_TYPE_TIME:
-					map->dest = &app_data.time;
+			case INPUT_TYPE_TIME:
+				map->dest = &app_data.time;
+				map->data_type = DATA_TYPE_DOUBLE;
+				app_data.bytes_per_frame += sizeof(double);
+				if(app_data.explicit_time) {
+					ERROR("Only 1 \"time\" type of input map is allowed!\n");
+					exit(-1);
+				}
+				app_data.explicit_time = true;
+				app_data.time_map_index = app_data.num_input_maps;
+				break;
+			case INPUT_TYPE_PLOT: {
+				//add_plot(&(app_data.gui));
+				break;
+			}
+			case INPUT_TYPE_BODY: {
+				int id;
+				char *field_str;
+				err = parse_attrib_to_int(xnode, &id, "id", true, 0);
+				if(err) {
+					return -1;
+				}
+				body_t *body = lookup_body_by_id(id);
+				if(body == NULL) {
+					ERROR("body ID (%d) referenced by <map> element does exist!\n", id);
+					free(map);
+					return -1;
+				}
+				err = err || parse_attrib_to_string(xnode, &field_str, "field", true, "");
+				if(err) {
+					xmlFree(field_str);
+					free(map);
+					return -1;
+				}
+				if(!strcmp(field_str, "x")) {
+					map->dest = &body->x;
 					map->data_type = DATA_TYPE_DOUBLE;
 					app_data.bytes_per_frame += sizeof(double);
-					if(app_data.explicit_time) {
-						ERROR("Only 1 \"time\" type of input map is allowed!\n");
-						exit(-1);
-					}
-					app_data.explicit_time = true;
-					app_data.time_map_index = app_data.num_input_maps;
-					break;
-				case INPUT_TYPE_BODY: {
-					int id;
-					char *field_str;
-					err = parse_attrib_to_int(xnode, &id, "id", true, 0);
-					if(err) {
-						return -1;
-					}
-					body_t *body = lookup_body_by_id(id);
-					if(body == NULL) {
-						ERROR("body ID (%d) referenced by <map> element does exist!\n", id);
-						free(map);
-						return -1;
-					}
-					err = err || parse_attrib_to_string(xnode, &field_str, "field", true, "");
-					if(err) {
-						xmlFree(field_str);
-						free(map);
-						return -1;
-					}
-					if(!strcmp(field_str, "x")) {
-						map->dest = &body->x;
-						map->data_type = DATA_TYPE_DOUBLE;
-						app_data.bytes_per_frame += sizeof(double);
-					}
-					else if(!strcmp(field_str, "y")) {
-						map->dest = &body->y;
-						map->data_type = DATA_TYPE_DOUBLE;
-						app_data.bytes_per_frame += sizeof(double);
-					}
-					else if(!strcmp(field_str, "theta")) {
-						map->dest = &body->theta;
-						map->data_type = DATA_TYPE_DOUBLE;
-						app_data.bytes_per_frame += sizeof(double);
-					}
-					else {
-						ERROR("Unsupported field\n");
-						xmlFree(field_str);
-						free(map);
-						return -1;
-					}
-					break;
 				}
-			}
+				else if(!strcmp(field_str, "y")) {
+					map->dest = &body->y;
+					map->data_type = DATA_TYPE_DOUBLE;
+					app_data.bytes_per_frame += sizeof(double);
+				}
+				else if(!strcmp(field_str, "theta")) {
+					map->dest = &body->theta;
+					map->data_type = DATA_TYPE_DOUBLE;
+					app_data.bytes_per_frame += sizeof(double);
+				}
+				else {
+					ERROR("Unsupported field\n");
+					xmlFree(field_str);
+					free(map);
+					return -1;
+				}
+				break;
+			} // end of INPUT_TYPE_BODY case
+			} // end of switch()
 			app_data.input_maps[app_data.num_input_maps++] = map;
 		}
 	}
@@ -2013,11 +2110,11 @@ void init_gui(void) {
    );
    gtk_paned_pack2(GTK_PANED(gp->h_pane), gp->plot_win, TRUE, TRUE);
 
-	GtkWidget *plot_v_box = gtk_vbox_new(FALSE, 4);
-   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(gp->plot_win), plot_v_box);
+	gp->plot_v_box = gtk_vbox_new(FALSE, 4);
+   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(gp->plot_win), gp->plot_v_box);
 
  	GtkWidget *g_plot = jbplot_new();
-   gtk_box_pack_start(GTK_BOX(plot_v_box), g_plot, TRUE, TRUE, 0);
+   gtk_box_pack_start(GTK_BOX(gp->plot_v_box), g_plot, TRUE, TRUE, 0);
 
 #else
 	gtk_box_pack_start (GTK_BOX(v_box), gp->canvas, TRUE, TRUE, 0);

@@ -71,6 +71,7 @@
 		<map column="2" type="body" id="12" field="x" />
 		<map column="3" type="body" id="1" field="y" />
 		<map column="4" type="body" id="10" field="theta" />
+		<map column="2" type="plot" />
 	</input_format>
 
 </modviz_config>
