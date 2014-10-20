@@ -1442,7 +1442,7 @@ static void body_transform_shape_to_ground(body_t *body, transform_t *t_out) {
 			xypar_theta = body_theta_to_ground(b->xy_parent);
 		}
 		transform_t t_new;
-		transform_make(&t_new, b->x, b->y, b->theta + qpar_theta - xypar_theta);
+		transform_make(&t_new, b->x, b->y, b->theta + b->theta_offset + qpar_theta - xypar_theta);
 		transform_append(&T, &t_new);
 	}
 
