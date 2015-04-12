@@ -231,6 +231,8 @@ typedef struct _input_map_t {
 	int field_num; // 1-based
 	void *dest; // where to write the value (a field of a body_t)
 	data_type_enum data_type;
+  double scale;
+  double offset;
 	int frame_byte_offset;
 } input_map_t;
 
@@ -977,15 +979,22 @@ int parse_input_format_xml(xmlNode *xml) {
 
 			int err = 0;
 			int column;
+      double scale, offset;
 			input_type_enum type;
 
 			err = parse_attrib_to_int(xnode, &column, "column", true, 0);
 			err = err || 
 				parse_attrib_to_enum(xnode, (int *)&type, "type", true, 0, input_fmt_enum_map);
+      err = err || 
+        parse_attrib_to_double(xnode, &scale, "scale", false, 1.0);
+      err = err || 
+        parse_attrib_to_double(xnode, &offset, "offset", false, 0.0);
 			if(err) {
 				return -1;
 			}
 			input_map_t *map = malloc(sizeof(input_map_t));
+      map->scale = scale;
+      map->offset = offset;
 			map->field_num = column;
 			switch(type) {
 				case INPUT_TYPE_TIME:
@@ -1453,7 +1462,7 @@ static void body_transform_shape_to_ground(body_t *body, transform_t *t_out) {
 			xypar_theta = body_theta_to_ground(b->xy_parent);
 		}
 		transform_t t_new;
-		transform_make(&t_new, b->x, b->y, b->theta + qpar_theta - xypar_theta);
+		transform_make(&t_new, b->x, b->y, b->theta + b->theta_offset + qpar_theta - xypar_theta);
 		transform_append(&T, &t_new);
 	}
 
@@ -2163,6 +2172,8 @@ int main(int argc, char *argv[]) {
 							ERROR("line: %s\n", line);
 							exit(-1);
 						}
+
+            d = map->scale * d + map->offset;
 						//printf("input_map #%d: column=%d, type=double, value=%g\n", i+1, map->field_num, d);
 						*((double *)(&pframe[offset])) = d;
 						map->frame_byte_offset = offset;
